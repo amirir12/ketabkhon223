@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>کتابخون</title>
+<script src="pdf.min.js"></script>
+<script src="jszip.min.js"></script>
+<style>
+:root{
+  --bg:#f3f5fa; --card:#ffffff; --ink:#161b33; --muted:#667091; --line:#dfe4f0;
+  --brand:#1b2548; --accent:#0e8aa8; --accent-ink:#ffffff; --soft:#e6f4f8;
+  --hl:#fff0b8; --hl-ink:#3b2d00; --danger:#b42318; --gold:#f5b301;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1226; --card:#1a1f3d; --ink:#eceffa; --muted:#98a1c4; --line:#2a3160;
+    --accent:#38bdf8; --accent-ink:#06223a; --soft:#16304a;
+    --hl:#4a3c10; --hl-ink:#ffe9a3; --danger:#ff8a7a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f3f5fa; --card:#ffffff; --ink:#161b33; --muted:#667091; --line:#dfe4f0;
+  --accent:#0e8aa8; --accent-ink:#ffffff; --soft:#e6f4f8; --hl:#fff0b8; --hl-ink:#3b2d00; --danger:#b42318;
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --bg:#0f1226; --card:#1a1f3d; --ink:#eceffa; --muted:#98a1c4; --line:#2a3160;
+  --accent:#38bdf8; --accent-ink:#06223a; --soft:#16304a; --hl:#4a3c10; --hl-ink:#ffe9a3; --danger:#ff8a7a;
+  color-scheme: dark;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{height:100%; margin:0}
+body{
+  background:var(--bg); color:var(--ink); overflow:hidden; line-height:1.8;
+  font-family:"Vazirmatn","Noto Sans Arabic","Noto Naskh Arabic",Tahoma,sans-serif; font-size:16px;
+}
+button{font:inherit}
+.view{position:fixed; inset:0; display:none; flex-direction:column}
+.view.on{display:flex}
+.top{background:var(--brand); color:#fff; padding:10px 8px 10px 14px; display:flex; align-items:center; gap:2px; flex:none; min-height:60px}
+.top h1{margin:0; font-size:1.25rem; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 6px}
+.top .sub{font-size:.8rem; opacity:.75; margin:0}
+.iconbtn{background:transparent; border:0; color:inherit; width:44px; height:44px; border-radius:50%; display:grid; place-items:center; cursor:pointer; flex:none}
+.iconbtn:active{background:rgba(255,255,255,.16)}
+svg.i{width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.note{font-size:.82rem; color:var(--muted); margin:0; padding:0 16px}
+.note.err{color:var(--danger)}
+.scroller{flex:1; overflow:auto; padding:14px 16px 110px}
+
+/* ---- library ---- */
+.toolbar{display:flex; gap:8px; margin-bottom:12px}
+.toolbar input{flex:1; min-width:0}
+.toolbar select{width:auto; flex:none}
+.tbtn{flex:none; width:44px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:12px; display:grid; place-items:center}
+.tbtn svg.i{width:20px; height:20px}
+#contStrip{display:none; background:linear-gradient(135deg,var(--brand),#2d3f80); color:#fff; border-radius:16px; padding:14px; margin-bottom:14px; gap:12px; align-items:center; cursor:pointer}
+#contStrip.on{display:flex}
+#contStrip .t{font-weight:700; line-height:1.5}
+#contStrip .s{font-size:.8rem; opacity:.8}
+#contStrip .go{margin-inline-start:auto; background:#fff; color:var(--brand); border:0; border-radius:20px; padding:8px 16px; font-weight:700; flex:none}
+#grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; align-content:start}
+.book{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; position:relative; cursor:pointer}
+.book:active{transform:scale(.985)}
+.cover{width:100%; aspect-ratio:3/4; object-fit:cover; display:block; background:var(--soft)}
+.coverph{width:100%; aspect-ratio:3/4; display:grid; place-items:center; background:linear-gradient(160deg,var(--brand),#2d3f80); color:#fff; padding:12px; text-align:center; font-weight:700; overflow:hidden}
+.meta{padding:10px 12px 12px; min-width:0; flex:1}
+.bt{font-weight:700; font-size:.95rem; line-height:1.6; height:3.2em; overflow:hidden}
+.bar{height:5px; background:var(--line); border-radius:3px; margin-top:6px; overflow:hidden}
+.bar i{display:block; height:100%; background:var(--accent)}
+.pct{font-size:.78rem; color:var(--muted); margin-top:4px}
+.done{color:var(--accent); font-weight:700}
+.del{position:absolute; top:8px; left:8px; width:34px; height:34px; border-radius:50%; border:0; background:rgba(0,0,0,.55); color:#fff; display:grid; place-items:center}
+.del svg.i{width:18px; height:18px}
+#grid.list{grid-template-columns:1fr}
+#grid.list .book{display:flex}
+#grid.list .cover,#grid.list .coverph{width:86px; flex:none; aspect-ratio:3/4; font-size:.7rem; padding:6px}
+#grid.list .bt{height:auto; max-height:3.2em}
+#empty{display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 20px; gap:10px}
+#empty .big{width:96px; height:96px; border-radius:24px; background:var(--soft); display:grid; place-items:center; color:var(--accent)}
+#empty .big svg.i{width:52px; height:52px; stroke-width:1.6}
+#empty h2{margin:6px 0 0; font-size:1.2rem}
+#empty p{margin:0; color:var(--muted); max-width:22em}
+.fab{
+  position:fixed; bottom:calc(76px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+  background:var(--accent); color:var(--accent-ink); border:0; border-radius:28px; padding:14px 26px;
+  font-weight:700; font-size:1rem; display:flex; gap:8px; align-items:center; box-shadow:0 6px 20px rgba(0,0,0,.28); z-index:5
+}
+
+/* ---- tabs ---- */
+#tabs{position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom); z-index:10}
+body.reading #tabs{display:none}
+.tab{flex:1; border:0; background:transparent; color:var(--muted); padding:9px 4px 7px; display:flex; flex-direction:column; align-items:center; font-size:.76rem; gap:2px}
+.tab.on{color:var(--accent); font-weight:700}
+
+/* ---- reader ---- */
+#readView{--rbg:var(--bg); --rink:var(--ink)}
+#readView[data-rt="white"]{--rbg:#ffffff; --rink:#161b33; --hl:#fff0b8; --hl-ink:#3b2d00}
+#readView[data-rt="paper"]{--rbg:#f4ecd8; --rink:#3b2f1c; --hl:#ffd98a; --hl-ink:#2b2000}
+#readView[data-rt="night"]{--rbg:#0b0d1a; --rink:#d9dcf0; --hl:#3b3213; --hl-ink:#ffe9a3}
+#textWrap{flex:1; overflow:auto; padding:18px 18px 24px; background:var(--rbg); color:var(--rink)}
+#pageText{line-height:2.3; font-size:1.3rem; text-align:justify; max-width:44em; margin:0 auto}
+#pageText[data-font="naskh"]{font-family:"Noto Naskh Arabic","Droid Naskh Shift Alt",serif}
+#pageText[data-font="sans"]{font-family:"Noto Sans Arabic","Roboto",sans-serif}
+.s{padding:2px 3px; border-radius:7px; cursor:pointer; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+.s.on{background:var(--hl); color:var(--hl-ink)}
+.s.mk{border-bottom:2px dotted var(--accent)}
+.s.hd{font-weight:700; display:inline-block; width:100%; margin-top:.4em}
+.dock{flex:none; background:var(--card); border-top:1px solid var(--line); padding:8px 14px calc(8px + env(safe-area-inset-bottom))}
+.seekrow{display:flex; align-items:center; gap:10px; font-size:.82rem; color:var(--muted)}
+.seekrow input{flex:1; accent-color:var(--accent)}
+.chips{display:flex; gap:8px; overflow-x:auto; padding:6px 0 2px}
+.chip{flex:none; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:18px; padding:4px 14px; font-size:.85rem}
+.chip.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700}
+.ctrls{display:flex; justify-content:space-between; align-items:center; margin-top:2px; padding:0 4px}
+.cb{background:transparent; border:0; color:var(--ink); width:52px; height:52px; border-radius:50%; display:grid; place-items:center}
+.cb:active{background:var(--soft)}
+.cb svg.i{width:28px; height:28px}
+.play{width:68px; height:68px; background:var(--accent); color:var(--accent-ink)}
+.play:active{background:var(--accent)}
+.play svg.i{width:34px; height:34px; fill:currentColor; stroke:none}
+.play .pause{display:none}
+.play.on .pause{display:block}
+.play.on .go{display:none}
+.play.wait{opacity:.7}
+#rHint{min-height:1.4em; text-align:center; padding:0}
+#readView.focus .top,#readView.focus .dock{display:none}
+#focusBar{display:none; position:fixed; bottom:calc(20px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); gap:12px; z-index:6}
+#readView.focus #focusBar{display:flex}
+#focusBar button{width:56px; height:56px; border-radius:50%; border:0; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,.3)}
+#focusBar button.ex{background:var(--card); color:var(--ink)}
+#focusBar svg.i{width:26px; height:26px}
+#focusBar .pl{fill:currentColor; stroke:none}
+
+/* ---- driving mode ---- */
+#drive{position:fixed; inset:0; background:#0b0d1a; color:#fff; z-index:30; display:none; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:24px; text-align:center}
+#drive.on{display:flex}
+#drive .dt{font-size:1.2rem; opacity:.85}
+#drive .row3{display:flex; gap:22px; align-items:center}
+#drive button{border:0; border-radius:50%; background:#1b2548; color:#fff; width:96px; height:96px; display:grid; place-items:center}
+#drive button.big{width:150px; height:150px; background:var(--accent); color:var(--accent-ink)}
+#drive svg.i{width:48px; height:48px}
+#drive .pl{fill:currentColor; stroke:none; width:70px; height:70px}
+#drive .exit{width:auto; height:auto; border-radius:20px; padding:10px 28px; font-size:1rem; background:transparent; border:1px solid #556}
+
+/* ---- dashboard ---- */
+.stats{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+.stat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px}
+.stat b{display:block; font-size:1.7rem; line-height:1.3}
+.stat span{color:var(--muted); font-size:.82rem}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:12px}
+.card h3{margin:0 0 10px; font-size:1rem}
+.chart{display:flex; align-items:flex-end; justify-content:space-between; gap:8px; height:120px}
+.chart .col{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end}
+.chart .col i{display:block; width:100%; max-width:26px; background:var(--accent); border-radius:6px 6px 2px 2px; min-height:4px}
+.chart .col em{font-style:normal; font-size:.68rem; color:var(--muted)}
+.badges{display:flex; flex-wrap:wrap; gap:8px}
+.badge{border:1px solid var(--line); border-radius:14px; padding:6px 12px; font-size:.82rem; color:var(--muted)}
+.badge.on{background:var(--soft); color:var(--accent); border-color:var(--accent); font-weight:700}
+.cont{display:flex; gap:12px; align-items:center}
+.cont img,.cont .coverph{width:64px; flex:none; border-radius:8px; object-fit:cover; font-size:.6rem; padding:4px}
+.cont .grow{flex:1; min-width:0}
+.cont .bt{height:auto; max-height:3.2em}
+
+/* ---- more list ---- */
+.rowbtn{width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--line); color:var(--ink); border-radius:14px; padding:16px; margin-bottom:10px; font-weight:600; text-align:start}
+.rowbtn svg.i{width:20px; height:20px; color:var(--muted)}
+
+/* ---- sheets / forms ---- */
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; z-index:20}
+.overlay.on{display:block}
+.panel{position:absolute; bottom:0; left:0; right:0; background:var(--card); border-radius:22px 22px 0 0; padding:18px 18px calc(22px + env(safe-area-inset-bottom)); max-height:88%; overflow:auto; max-width:640px; margin:0 auto}
+.panel h2{margin:0 0 6px; font-size:1.1rem}
+label.f{display:block; font-size:.88rem; color:var(--muted); margin:14px 0 6px}
+select,input[type=number],input[type=text],textarea{
+  width:100%; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:10px 12px
+}
+textarea{min-height:130px; resize:vertical}
+input[type=range]{width:100%; accent-color:var(--accent)}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.row > *{flex:1}
+.btn{border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:12px; padding:12px 16px; font-weight:600}
+.btn.main{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.btn.danger{background:var(--danger); color:#fff; border-color:var(--danger)}
+.btn:disabled{opacity:.45}
+.btn.sm{padding:8px 14px; font-size:.88rem}
+audio{width:100%; margin-top:12px}
+.hint{font-size:.82rem; color:var(--muted); margin:10px 0 0}
+.seg{display:flex; gap:6px; margin-bottom:10px}
+.seg button{flex:1; padding:9px; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:12px}
+.seg button.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700}
+.li{padding:10px 4px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; cursor:pointer}
+.li .tx{flex:1; min-width:0}
+.li small{color:var(--muted); display:block}
+.li .x{border:0; background:transparent; color:var(--muted); width:34px; height:34px; flex:none}
+.wordchips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+.stars{display:flex; gap:6px; margin:8px 0}
+.star{border:0; background:transparent; font-size:2.1rem; color:var(--line); padding:0 2px; line-height:1}
+.star.on{color:var(--gold)}
+.sugg{border-top:1px solid var(--line); padding:12px 0}
+.sugg b{display:block}
+.sugg small{color:var(--muted)}
+.sugg p{margin:4px 0 8px; font-size:.9rem}
+.logo{width:88px; height:88px; border-radius:22px; background:#1b2548; display:grid; place-items:center; margin:4px auto 8px}
+.logo svg{width:72px; height:72px}
+.aboutT{text-align:center}
+.aboutT h2{margin:4px 0}
+.licenses{font-size:.8rem; color:var(--muted); margin-top:14px}
+.qtext{background:var(--soft); border-radius:12px; padding:12px; margin:8px 0; line-height:2}
+
+/* ---- onboarding ---- */
+#onb{position:fixed; inset:0; background:var(--brand); color:#fff; z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; gap:14px}
+#onb.on{display:flex}
+#onb .logo{width:120px; height:120px; background:#0f1733}
+#onb .logo svg{width:100px; height:100px}
+#onb h2{margin:6px 0 0; font-size:1.5rem}
+#onb p{margin:0; opacity:.85; max-width:20em}
+#onb .dots{display:flex; gap:8px; margin-top:8px}
+#onb .dots i{width:8px; height:8px; border-radius:4px; background:#fff; opacity:.3}
+#onb .dots i.on{opacity:1; width:22px}
+#onb .btn{background:#fff; color:var(--brand); border:0; padding:12px 40px; margin-top:12px; border-radius:24px}
+
+#busy{position:fixed; inset:0; background:rgba(10,13,32,.72); display:none; align-items:center; justify-content:center; z-index:70; padding:30px}
+#busy.on{display:flex}
+#busy .box{background:var(--card); border-radius:18px; padding:22px; width:100%; max-width:340px; text-align:center}
+#busy .bar{height:8px; margin-top:12px}
+#toast{position:fixed; bottom:calc(96px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:10px 18px; border-radius:20px; font-size:.9rem; z-index:80; display:none; max-width:90%; text-align:center}
+#toast.on{display:block}
+@media (min-width:700px){
+  #grid{grid-template-columns:repeat(4,1fr)}
+  .scroller{max-width:900px; margin:0 auto; width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ Library ============ -->
+<div id="libView" class="view on">
+  <div class="top">
+    <div style="flex:1; padding:0 6px">
+      <h1 style="padding:0">کتابخانهٔ من</h1>
+      <p class="sub" id="libCount"></p>
+    </div>
+  </div>
+  <p class="note warmNote" style="padding-top:8px"></p>
+  <div class="scroller">
+    <div class="toolbar" id="libTools">
+      <input type="text" id="libQ" placeholder="جستجوی کتاب‌ها">
+      <select id="libSort"><option value="recent">اخیر</option><option value="name">نام</option><option value="progress">پیشرفت</option></select>
+      <button class="tbtn" id="viewBtn" aria-label="تغییر نما"><svg class="i" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+    </div>
+    <div id="contStrip"><div><div class="t" id="csT"></div><div class="s" id="csS"></div></div><button class="go">ادامه</button></div>
+    <div id="grid"></div>
+    <div id="empty">
+      <div class="big"><svg class="i" viewBox="0 0 24 24"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5V19c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z"/><path d="M12 6v13.5"/></svg></div>
+      <h2>هنوز کتابی ندارید</h2>
+      <p>یک فایل PDF، Word، EPUB یا متن را اضافه کنید تا کتابتان را برایتان بخواند.</p>
+    </div>
+  </div>
+  <button class="fab" id="addBtn"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M12 5v14M5 12h14"/></svg>افزودن کتاب</button>
+  <input type="file" id="file" hidden>
+  <input type="file" id="restoreFile" hidden>
+</div>
+
+<!-- ============ Profile ============ -->
+<div id="meView" class="view">
+  <div class="top"><h1>پروفایل من</h1></div>
+  <div class="scroller">
+    <div class="stats">
+      <div class="stat"><b id="stBooks">۰</b><span>کتاب در کتابخانه</span></div>
+      <div class="stat"><b id="stTotal">۰</b><span>دقیقه گوش‌دادن (کل)</span></div>
+      <div class="stat"><b id="stToday">۰</b><span>دقیقه امروز</span></div>
+      <div class="stat"><b id="stStreak">۰</b><span>روز پیاپی</span></div>
+    </div>
+    <div class="card">
+      <h3>هدف روزانه</h3>
+      <div class="row" style="flex-wrap:nowrap">
+        <div style="flex:2"><div class="bar" style="margin:0"><i id="goalBar" style="width:0%"></i></div><div class="pct" id="goalTxt"></div></div>
+        <select id="goalSel" style="flex:1"><option value="10">۱۰ دقیقه</option><option value="20">۲۰ دقیقه</option><option value="30">۳۰ دقیقه</option><option value="45">۴۵ دقیقه</option><option value="60">۶۰ دقیقه</option></select>
+      </div>
+    </div>
+    <div class="card" id="contCard" style="display:none">
+      <h3>ادامهٔ مطالعه</h3>
+      <div class="cont">
+        <div id="contCover"></div>
+        <div class="grow"><div class="bt" id="contTitle"></div><div class="bar"><i id="contBar" style="width:0%"></i></div><div class="pct" id="contPct"></div></div>
+      </div>
+      <button class="btn main" id="contGo" style="width:100%; margin-top:12px">ادامه بده</button>
+    </div>
+    <div class="card"><h3>گوش‌دادن در هفتهٔ اخیر (دقیقه)</h3><div class="chart" id="chart"></div></div>
+    <div class="card"><h3>نشان‌ها</h3><div class="badges" id="badges"></div></div>
+  </div>
+</div>
+
+<!-- ============ More ============ -->
+<div id="moreView" class="view">
+  <div class="top"><h1>بیشتر</h1></div>
+  <div class="scroller">
+    <button class="rowbtn" id="mSet">تنظیمات <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+    <button class="rowbtn" id="mPron">اصلاح تلفظ کلمه‌ها <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+    <button class="rowbtn" id="mFind">جستجوی مقاله و معرفی کتاب <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+    <button class="rowbtn" id="mBackup">پشتیبان‌گیری و بازیابی <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+    <button class="rowbtn" id="mFeed">ارسال نظر و امتیاز <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+    <button class="rowbtn" id="mShare">اشتراک‌گذاری برنامه <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+    <button class="rowbtn" id="mAbout">دربارهٔ ما <svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+  </div>
+</div>
+
+<!-- ============ Reader ============ -->
+<div id="readView" class="view" data-rt="white">
+  <div class="top">
+    <button class="iconbtn" id="backBtn" aria-label="بازگشت"><svg class="i" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button>
+    <h1 id="rTitle"></h1>
+    <button class="iconbtn" id="markBtn" aria-label="نشانک"><svg class="i" viewBox="0 0 24 24" id="markIcon"><path d="M6 4h12v17l-6-4-6 4z"/></svg></button>
+    <button class="iconbtn" id="listBtn" aria-label="فصل‌ها و نشانک‌ها"><svg class="i" viewBox="0 0 24 24"><line x1="8" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
+    <button class="iconbtn" id="setBtn" aria-label="تنظیمات"><svg class="i" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.2" fill="var(--brand)"/><circle cx="15" cy="17" r="2.2" fill="var(--brand)"/></svg></button>
+  </div>
+  <div id="textWrap"><div id="pageText" data-font="sys"></div></div>
+  <div class="dock">
+    <div class="seekrow"><span id="pg"></span><input type="range" id="seek" min="0" max="0" value="0" aria-label="موقعیت در کتاب"></div>
+    <div class="chips">
+      <button class="chip" data-r="0.8">۰٫۸×</button><button class="chip" data-r="0.9">۰٫۹×</button><button class="chip" data-r="1.0">۱×</button><button class="chip" data-r="1.1">۱٫۱×</button>
+      <button class="chip" id="sleepBtn">تایمر خواب</button>
+      <button class="chip" id="focusBtn">حالت تمرکز</button>
+      <button class="chip" id="driveBtn">حالت رانندگی</button>
+    </div>
+    <div class="ctrls">
+      <button class="cb" id="pPrev" aria-label="صفحهٔ قبل"><svg class="i" viewBox="0 0 24 24"><polyline points="7 6 13 12 7 18"/><polyline points="13 6 19 12 13 18"/></svg></button>
+      <button class="cb" id="sPrev" aria-label="جملهٔ قبل"><svg class="i" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button>
+      <button class="cb play" id="play" aria-label="پخش یا توقف">
+        <svg class="i go" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20"/></svg>
+        <svg class="i pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4.5" height="16" rx="1"/><rect x="13.5" y="4" width="4.5" height="16" rx="1"/></svg>
+      </button>
+      <button class="cb" id="sNext" aria-label="جملهٔ بعد"><svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+      <button class="cb" id="pNext" aria-label="صفحهٔ بعد"><svg class="i" viewBox="0 0 24 24"><polyline points="17 6 11 12 17 18"/><polyline points="11 6 5 12 11 18"/></svg></button>
+    </div>
+    <p class="note" id="rHint"></p>
+  </div>
+  <div id="focusBar">
+    <button id="fbPlay" aria-label="پخش یا توقف"><svg class="i pl" viewBox="0 0 24 24" id="fbIcon"><polygon points="7 4 20 12 7 20"/></svg></button>
+    <button class="ex" id="fbExit" aria-label="خروج از حالت تمرکز"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+</div>
+
+<div id="drive">
+  <div class="dt" id="driveT"></div>
+  <div class="row3">
+    <button id="dPrev" aria-label="قبلی"><svg class="i" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button>
+    <button class="big" id="dPlay" aria-label="پخش یا توقف"><svg class="i pl" viewBox="0 0 24 24" id="dIcon"><polygon points="7 4 20 12 7 20"/></svg></button>
+    <button id="dNext" aria-label="بعدی"><svg class="i" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+  </div>
+  <button class="exit" id="dExit">خروج از حالت رانندگی</button>
+</div>
+
+<nav id="tabs">
+  <button class="tab on" data-v="lib"><svg class="i" viewBox="0 0 24 24"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5V19c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z"/><path d="M12 6v13.5"/></svg>کتابخانه</button>
+  <button class="tab" data-v="me"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1-4 4-6 8-6s7 2 8 6"/></svg>پروفایل</button>
+  <button class="tab" data-v="more"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>بیشتر</button>
+</nav>
+
+<!-- ============ Sheets ============ -->
+<div class="overlay" id="sheetAdd"><div class="panel">
+  <h2>افزودن کتاب</h2>
+  <p class="note" style="padding:0">فرمت‌های پشتیبانی‌شده: PDF، Word (docx)، EPUB و متن (txt). فایل را از حافظهٔ گوشی یا Google Drive انتخاب کنید.</p>
+  <div class="row" style="margin-top:14px"><button class="btn main" id="addFile">انتخاب فایل</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="addPaste">چسباندن متن</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="closeAdd">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetPaste"><div class="panel">
+  <h2>چسباندن متن</h2>
+  <label class="f" for="pasteTitle">عنوان</label>
+  <input type="text" id="pasteTitle" placeholder="مثلاً: مقالهٔ امروز">
+  <label class="f" for="pasteText">متن</label>
+  <textarea id="pasteText" placeholder="متن را اینجا بچسبانید"></textarea>
+  <div class="row" style="margin-top:14px"><button class="btn main" id="pasteGo">افزودن به کتابخانه</button><button class="btn" id="pasteClose">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetSet"><div class="panel">
+  <h2>تنظیمات</h2>
+  <label class="f" for="voice">صدای خواننده</label>
+  <select id="voice"><option value="amir">امیر (صدای مرد)</option><option value="ganji_adabi">گنجی ادبی (صدای مرد)</option></select>
+  <button class="btn sm" id="sample" style="margin-top:8px">شنیدن نمونهٔ صدا</button>
+  <label class="f" for="rate">سرعت خواندن: <b id="rateVal">0.9</b></label>
+  <input type="range" id="rate" min="0.6" max="1.3" step="0.1" value="0.9">
+  <label class="f" for="fs">اندازهٔ متن</label>
+  <input type="range" id="fs" min="1" max="2" step="0.1" value="1.3">
+  <label class="f" for="fontSel">قلم متن</label>
+  <select id="fontSel"><option value="sys">پیش‌فرض</option><option value="naskh">نسخ (کتابی)</option><option value="sans">ساده</option></select>
+  <label class="f" for="rtSel">زمینهٔ صفحهٔ خواندن</label>
+  <select id="rtSel"><option value="white">سفید</option><option value="paper">کاغذی</option><option value="night">شب</option></select>
+  <label class="f" for="theme">ظاهر برنامه</label>
+  <select id="theme"><option value="auto">مطابق گوشی</option><option value="light">روشن</option><option value="dark">تیره</option></select>
+  <div class="row" style="margin-top:18px"><button class="btn main" id="openBuild">ساخت فایل صوتی</button><button class="btn" id="closeSet">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetBuild"><div class="panel">
+  <h2>ساخت فایل صوتی</h2>
+  <div class="row">
+    <div><label class="f" for="pFrom">از صفحه</label><input type="number" id="pFrom" min="1" value="1"></div>
+    <div><label class="f" for="pTo">تا صفحه</label><input type="number" id="pTo" min="1" value="1"></div>
+  </div>
+  <div class="row" style="margin-top:14px"><button class="btn main" id="build">ساخت فایل</button><button class="btn" id="cancelBuild" disabled>توقف</button></div>
+  <p class="note" id="buildNote" style="padding:10px 0 0"></p>
+  <audio id="player" controls hidden></audio>
+  <div class="row" style="margin-top:12px"><button class="btn" id="save" disabled>ذخیره در Download</button><button class="btn" id="share" disabled>اشتراک‌گذاری</button></div>
+  <p class="hint">فایل با فرمت WAV ساخته می‌شود و حجمش زیاد است (حدود ۲٫۶ مگابایت برای هر دقیقه). بهتر است هر بار چند صفحه بسازید.</p>
+  <div class="row" style="margin-top:14px"><button class="btn" id="closeBuild">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetList"><div class="panel">
+  <div class="seg"><button id="tabCh" class="on">فصل‌ها</button><button id="tabMk">نشانک‌ها</button></div>
+  <div id="listBox"></div>
+  <div class="row" style="margin-top:14px"><button class="btn" id="closeList">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetSent"><div class="panel">
+  <h2>این جمله</h2>
+  <div class="qtext" id="sentText"></div>
+  <div class="row"><button class="btn main sm" id="smPlay">خواندن از اینجا</button><button class="btn sm" id="smMark">نشانک</button></div>
+  <div class="row" style="margin-top:8px"><button class="btn sm" id="smImg">اشتراک به‌صورت تصویر</button><button class="btn sm" id="smGoogle">جستجو در Google</button></div>
+  <div class="row" style="margin-top:8px"><button class="btn sm" id="smEdit">ویرایش متن این جمله</button></div>
+  <label class="f">روی یک کلمه بزنید (معنی یا اصلاح تلفظ):</label>
+  <div class="wordchips" id="wordChips"></div>
+  <div class="row" style="margin-top:14px"><button class="btn" id="closeSent">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetEdit"><div class="panel">
+  <h2>ویرایش متن این جمله</h2>
+  <p class="note" style="padding:0">اگر کلمه‌ای تکه‌تکه یا غلط نوشته شده، اینجا اصلاحش کنید. برای اصلاح همان خطا در کل کتاب، «جایگزینی در کل کتاب» را بزنید.</p>
+  <textarea id="editText" style="margin-top:10px"></textarea>
+  <div class="row" style="margin-top:12px"><button class="btn main" id="edSave">ذخیره</button><button class="btn" id="edRepl">جایگزینی در کل کتاب</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="closeEdit">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetRepl"><div class="panel">
+  <h2>جایگزینی در کل کتاب</h2>
+  <p class="note" style="padding:0">مثلاً «رن ج» را با «رنج» جایگزین کنید. حروف کوچک و بزرگ و فاصله‌ها مهم‌اند.</p>
+  <label class="f" for="rpFind">این متن را پیدا کن</label><input type="text" id="rpFind">
+  <label class="f" for="rpWith">با این جایگزین کن</label><input type="text" id="rpWith">
+  <div class="row" style="margin-top:14px"><button class="btn main" id="rpGo">اعمال در کل کتاب</button><button class="btn" id="closeRepl">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetWord"><div class="panel">
+  <h2 id="wordT"></h2>
+  <div class="row" style="margin-top:10px"><button class="btn main" id="wMean">معنی در Google</button><button class="btn" id="wPron">اصلاح تلفظ</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="closeWord">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetPron"><div class="panel">
+  <h2>اصلاح تلفظ</h2>
+  <p class="note" style="padding:0">اگر برنامه کلمه‌ای را غلط می‌خواند، همان کلمه را آن‌طور بنویسید که باید خوانده شود. مثلاً «خواهر» را «خاهر».</p>
+  <label class="f" for="pf">کلمه</label><input type="text" id="pf">
+  <label class="f" for="pt">بنویسید چگونه خوانده شود</label><input type="text" id="pt">
+  <div class="row" style="margin-top:12px"><button class="btn sm" id="pHear">شنیدن</button><button class="btn main sm" id="pAdd">افزودن</button></div>
+  <h2 style="margin-top:18px">فهرست شما</h2>
+  <div id="pronList"></div>
+  <div class="row" style="margin-top:14px"><button class="btn" id="closePron">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetSleep"><div class="panel">
+  <h2>تایمر خواب</h2>
+  <p class="note" style="padding:0">بعد از زمان انتخابی، خواندن خودکار متوقف می‌شود.</p>
+  <div class="row" style="margin-top:12px"><button class="btn" data-sl="15">۱۵ دقیقه</button><button class="btn" data-sl="30">۳۰ دقیقه</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" data-sl="60">۶۰ دقیقه</button><button class="btn" data-sl="90">۹۰ دقیقه</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn danger" data-sl="0">خاموش کردن تایمر</button></div>
+</div></div>
+
+<div class="overlay" id="sheetBackup"><div class="panel">
+  <h2>پشتیبان‌گیری و بازیابی</h2>
+  <p class="note" style="padding:0">کتابخانه (متن کتاب‌ها، پیشرفت، نشانک‌ها و اصلاح تلفظ‌ها) در یک فایل ذخیره می‌شود. با حذف برنامه اطلاعات پاک می‌شود؛ پس پیش از آن پشتیبان بگیرید.</p>
+  <div class="row" style="margin-top:14px"><button class="btn main" id="bkMake">ساخت پشتیبان</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="bkRestore">بازیابی از فایل پشتیبان</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="closeBackup">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetFind"><div class="panel">
+  <h2>جستجوی مقاله و معرفی کتاب</h2>
+  <p class="note" style="padding:0">نتیجه در مرورگر و در Google باز می‌شود (اینترنت لازم است).</p>
+  <div class="row" style="margin-top:10px"><input type="text" id="q" placeholder="نام کتاب، موضوع یا نویسنده"><button class="btn main" id="qGo" style="flex:none">جستجو</button></div>
+  <h2 style="margin-top:20px">کتاب‌های پیشنهادی</h2>
+  <div id="sugg"></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="closeFind">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetFeed"><div class="panel">
+  <h2>نظر شما برای ما مهم است</h2>
+  <div class="stars" id="stars"></div>
+  <textarea id="fbText" placeholder="چه چیزی را دوست داشتید؟ چه چیزی باید بهتر شود؟"></textarea>
+  <div class="row" style="margin-top:14px"><button class="btn main" id="fbSend">ارسال با ایمیل</button><button class="btn" id="fbRate">امتیاز در بازار</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="closeFeed">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetAbout"><div class="panel">
+  <div class="aboutT">
+    <div class="logo"><svg viewBox="0 0 108 108"><g transform="translate(0,6)"><path d="M46,33 Q54,26 62,33" fill="none" stroke="#38BDF8" stroke-width="3.2" stroke-linecap="round"/><path d="M39,33 Q54,18 69,33" fill="none" stroke="#38BDF8" stroke-opacity=".8" stroke-width="3.2" stroke-linecap="round"/><path d="M32,33 Q54,10 76,33" fill="none" stroke="#38BDF8" stroke-opacity=".55" stroke-width="3.2" stroke-linecap="round"/><path d="M54,43 C47,38 39,37 31,38.5 L31,71 C39,69.5 47,70.5 54,75.5 Z" fill="#fff"/><path d="M54,43 C61,38 69,37 77,38.5 L77,71 C69,69.5 61,70.5 54,75.5 Z" fill="#D6EEF6"/><path d="M54,43 L54,75.5" stroke="#1B2548" stroke-width="1.6"/></g></svg></div>
+    <h2 id="abName"></h2><div class="note" id="abVer" style="padding:0"></div>
+  </div>
+  <p id="abText" style="margin:14px 0 6px"></p>
+  <p class="note" id="abDev" style="padding:0"></p><p class="note" id="abMail" style="padding:0"></p>
+  <div class="licenses"><b>مجوزها و سپاس:</b> موتور صدا sherpa-onnx (Apache-2.0)، کتابخانهٔ pdf.js (Apache-2.0)، کتابخانهٔ JSZip (MIT) و صداهای فارسی بر پایهٔ پروژهٔ Piper و دادگان DataCula.</div>
+  <div class="row" style="margin-top:14px"><button class="btn" id="closeAbout">بستن</button></div>
+</div></div>
+
+<div class="overlay" id="sheetDel"><div class="panel">
+  <h2 id="delTitle">حذف کتاب</h2>
+  <p class="note" style="padding:0">این کتاب و جای مطالعه و نشانک‌هایش از کتابخانه حذف می‌شود. فایل اصلی روی گوشی دست‌نخورده می‌ماند.</p>
+  <div class="row" style="margin-top:16px"><button class="btn danger" id="delOk">حذف</button><button class="btn" id="delNo">انصراف</button></div>
+</div></div>
+
+<div id="onb">
+  <div class="logo"><svg viewBox="0 0 108 108"><g transform="translate(0,6)"><path d="M46,33 Q54,26 62,33" fill="none" stroke="#38BDF8" stroke-width="3.2" stroke-linecap="round"/><path d="M39,33 Q54,18 69,33" fill="none" stroke="#38BDF8" stroke-opacity=".8" stroke-width="3.2" stroke-linecap="round"/><path d="M32,33 Q54,10 76,33" fill="none" stroke="#38BDF8" stroke-opacity=".55" stroke-width="3.2" stroke-linecap="round"/><path d="M54,43 C47,38 39,37 31,38.5 L31,71 C39,69.5 47,70.5 54,75.5 Z" fill="#fff"/><path d="M54,43 C61,38 69,37 77,38.5 L77,71 C69,69.5 61,70.5 54,75.5 Z" fill="#D6EEF6"/><path d="M54,43 L54,75.5" stroke="#1B2548" stroke-width="1.6"/></g></svg></div>
+  <h2 id="onbT"></h2><p id="onbP"></p>
+  <div class="dots"><i></i><i></i><i></i></div>
+  <button class="btn" id="onbNext">بعدی</button>
+</div>
+
+<div id="busy"><div class="box"><div id="busyMsg">لطفاً صبر کنید…</div><div class="bar"><i id="busyBar" style="width:0%"></i></div></div></div>
+<div id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "pdf.worker.min.js";
+
+const $ = id => document.getElementById(id);
+const fa = n => Number(n).toLocaleString("fa");
+const A = window.Android;
+
+/* ---------- app info (edit these values) ---------- */
+const CONFIG = {
+  appName: "کتابخون",
+  version: "1.5",
+  developer: "",
+  email: "",
+  storeUrl: "",
+  about: "کتابخون به شما کمک می‌کند کتاب‌ها و مقاله‌های خود را با صدای فارسی و بدون نیاز به اینترنت گوش کنید."
+};
+
+/* ---------- small helpers ---------- */
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 3200);
+}
+function showBusy(msg, frac){ $("busy").classList.add("on"); $("busyMsg").textContent = msg; $("busyBar").style.width = Math.round((frac || 0) * 100) + "%"; }
+function hideBusy(){ $("busy").classList.remove("on"); }
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("kk_" + k); return v === null ? d : v; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("kk_" + k, v); }catch(e){} }
+};
+function dayKey(off){
+  const d = new Date(); d.setDate(d.getDate() + off);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+let view = "lib";
+function go(v){
+  view = v;
+  ["lib","me","more","read"].forEach(n => $(n + "View").classList.toggle("on", n === v));
+  document.body.classList.toggle("reading", v === "read");
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.v === v));
+  if(v === "me") renderMe();
+}
+function openSheet(id){ $(id).classList.add("on"); }
+function closeSheets(){ document.querySelectorAll(".overlay").forEach(o => o.classList.remove("on")); }
+function sheetOpen(){ return !!document.querySelector(".overlay.on"); }
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if(e.target === o) o.classList.remove("on"); }));
+function openWeb(url){ if(A) A.openUrl(url); else window.open(url, "_blank"); }
+function googleSearch(q){ openWeb("https://www.google.com/search?q=" + encodeURIComponent(q)); }
+
+/* ---------- settings (remembered) ---------- */
+$("voice").value = store.get("voice", "amir");
+$("rate").value = store.get("rate", "0.9"); $("rateVal").textContent = $("rate").value;
+$("fs").value = store.get("fs", "1.3");
+$("fontSel").value = store.get("font", "sys");
+$("rtSel").value = store.get("rt", "white");
+$("theme").value = store.get("theme", "auto");
+const voice = () => $("voice").value;
+const rate = () => Number($("rate").value);
+function applyLook(){
+  $("pageText").style.fontSize = $("fs").value + "rem";
+  $("pageText").dataset.font = $("fontSel").value;
+  $("readView").dataset.rt = $("rtSel").value;
+  const t = $("theme").value;
+  if(t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+  document.querySelectorAll(".chip[data-r]").forEach(c => c.classList.toggle("on", Number(c.dataset.r) === rate()));
+}
+applyLook();
+
+/* ---------- storage (IndexedDB) ---------- */
+const dbp = new Promise((res, rej) => {
+  const r = indexedDB.open("ketabkhoon", 1);
+  r.onupgradeneeded = () => { r.result.createObjectStore("books", {keyPath:"id"}); r.result.createObjectStore("texts", {keyPath:"id"}); };
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+async function dbDo(storeName, mode, fn){
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const t = db.transaction(storeName, mode);
+    const req = fn(t.objectStore(storeName));
+    t.oncomplete = () => res(req ? req.result : undefined);
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error);
+  });
+}
+const dbAll = s => dbDo(s, "readonly", st => st.getAll());
+const dbGet = (s, id) => dbDo(s, "readonly", st => st.get(id));
+const dbPut = (s, v) => dbDo(s, "readwrite", st => st.put(v));
+const dbDel = (s, id) => dbDo(s, "readwrite", st => st.delete(id));
+
+/* ---------- engine warm-up ---------- */
+let warm = false, warmErr = null;
+function updateWarm(){
+  document.querySelectorAll(".warmNote").forEach(n => {
+    n.className = "note warmNote" + (warmErr ? " err" : "");
+    n.textContent = warmErr ? "آماده‌سازی صدا ناموفق بود: " + warmErr : (warm ? "" : "در حال آماده‌سازی صدا… (بار اول چند ثانیه طول می‌کشد)");
+  });
+}
+window.__warmDone = () => { warm = true; warmErr = null; updateWarm(); };
+window.__warmFail = m => { warmErr = m; updateWarm(); };
+function startWarm(){ if(!A) return; warm = false; warmErr = null; updateWarm(); A.warmUp(voice()); }
+
+/* ---------- text splitting ---------- */
+function pushLong(s, out){
+  while(s.length > 240){
+    let cut = Math.max(s.lastIndexOf("،", 220), s.lastIndexOf(",", 220), s.lastIndexOf(" ", 220));
+    if(cut < 80) cut = 220;
+    out.push(s.slice(0, cut + 1).trim());
+    s = s.slice(cut + 1).trim();
+  }
+  if(s) out.push(s);
+}
+function splitSentences(text){
+  const clean = text.replace(/\s+/g, " ").trim();
+  if(!clean) return [];
+  const parts = clean.match(/[^.!?؟۔…]+[.!?؟۔…]*/g) || [clean];
+  const out = [];
+  let buf = "";
+  for(let p of parts){
+    p = p.trim(); if(!p) continue;
+    buf = buf ? buf + " " + p : p;
+    if(buf.length >= 40){ pushLong(buf, out); buf = ""; }
+  }
+  if(buf){
+    if(out.length && buf.length < 20) out[out.length - 1] += " " + buf;
+    else pushLong(buf, out);
+  }
+  return out;
+}
+
+/* ---------- pdf text extraction (rebuilds lines from positions) ---------- */
+const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+const ORN = "✦✧★☆◆◇❖•※■□▪▫❧☙✺✹✸";
+const ORN_SPLIT = new RegExp("\\s*[" + ORN + "]+(?:\\s*[" + ORN + "]+)*\\s*");
+const DIAC_RE = /[\u064B-\u065F\u0670\u06D6-\u06ED]/g;
+function isLtrOnly(s){ return /[A-Za-z0-9]/.test(s) && !ARABIC_RE.test(s); }
+function orderLine(items, rtl){
+  items.sort((a, b) => rtl ? (b.x - a.x) : (a.x - b.x));
+  if(rtl){
+    let i = 0;
+    while(i < items.length){
+      if(isLtrOnly(items[i].s)){
+        let j = i;
+        while(j + 1 < items.length && isLtrOnly(items[j + 1].s)) j++;
+        if(j > i){ const seg = items.slice(i, j + 1).reverse(); items.splice(i, seg.length, ...seg); }
+        i = j + 1;
+      }else i++;
+    }
+  }
+  return items;
+}
+function gapOf(a, b){ return Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)); }
+function gapThreshold(lines){
+  const gaps = [];
+  lines.forEach(ln => {
+    for(let k = 1; k < ln.items.length; k++){
+      const a = ln.items[k - 1], b = ln.items[k];
+      if(!(a.w > 0 && b.w > 0)) continue;
+      const g = gapOf(a, b) / ln.h;
+      if(g > -0.05 && g < 3) gaps.push(Math.max(0, g));
+    }
+  });
+  if(gaps.length < 20) return 0.2;
+  let c1 = Math.min(...gaps), c2 = Math.max(...gaps);
+  if(c2 - c1 < 0.05) return 0.2;
+  for(let n = 0; n < 20; n++){
+    let s1 = 0, n1 = 0, s2 = 0, n2 = 0;
+    gaps.forEach(g => { if(Math.abs(g - c1) <= Math.abs(g - c2)){ s1 += g; n1++; } else { s2 += g; n2++; } });
+    if(n1) c1 = s1 / n1;
+    if(n2) c2 = s2 / n2;
+  }
+  return Math.min(0.45, Math.max(0.12, (c1 + c2) / 2));
+}
+/* mode "spaces": the PDF already marks real spaces (inside the text or as separate items),
+   so letters are joined directly. mode "gaps": no spaces in the PDF, so word breaks are decided
+   from the measured gaps between pieces. */
+function joinOrdered(items, mode, thr, marks){
+  let out = "", prev = null;
+  for(const it of items){
+    if(prev && !/\s$/.test(out) && !/^\s/.test(it.s)){
+      const known = it.w > 0 && prev.w > 0;
+      if(mode === "spaces"){
+        const e1 = it.x + it.w, e2 = prev.x + prev.w;
+        const lo = Math.min(e1, prev.x, e2, it.x) , hi = Math.max(e1, prev.x, e2, it.x);
+        const gl = Math.min(Math.max(it.x, prev.x), Math.max(e1, e2)), gh = Math.max(Math.min(e1, e2), Math.min(it.x, prev.x));
+        const a1 = Math.min(gl, gh), a2 = Math.max(gl, gh), tol = 0.3 * it.h;
+        const marked = marks.some(sx => sx >= a1 - tol && sx <= a2 + tol && sx >= lo - tol && sx <= hi + tol);
+        if(marked || (known && gapOf(prev, it) > thr * it.h)) out += " ";
+      }else if(known){
+        if(gapOf(prev, it) > thr * it.h) out += " ";
+      }else if(!/^[\u064B-\u065F\u0670]/.test(it.s)){
+        out += " ";
+      }
+    }
+    out += it.s; prev = it;
+  }
+  return out;
+}
+function extractParagraphs(rawItems){
+  const arr = [], spaceItems = [];
+  let withSpace = 0;
+  for(const i of rawItems){
+    if(!i.str) continue;
+    const o = {s: i.str, x: i.transform[4], y: i.transform[5], w: i.width || 0, h: Math.abs(i.transform[3]) || i.height || 10};
+    if(/\s/.test(i.str)) withSpace++;
+    if(!i.str.trim()) spaceItems.push(o); else arr.push(o);
+  }
+  if(!arr.length) return [];
+  const mode = withSpace >= Math.max(3, (arr.length + spaceItems.length) * 0.02) ? "spaces" : "gaps";
+  let ar = 0, lat = 0;
+  for(const it of arr){ for(const ch of it.s){ if(ARABIC_RE.test(ch)) ar++; else if(/[A-Za-z]/.test(ch)) lat++; } }
+  const rtl = ar >= lat;
+  arr.sort((a, b) => b.y - a.y);
+  const lines = [];
+  for(const it of arr){
+    const last = lines[lines.length - 1];
+    if(last && Math.abs(it.y - last.y) <= Math.max(2, last.h * 0.5)) last.items.push(it);
+    else lines.push({y: it.y, h: it.h, items: [it], marks: []});
+  }
+  spaceItems.forEach(sp => {
+    let best = null, bd = 1e9;
+    lines.forEach(ln => { const d = Math.abs(ln.y - sp.y); if(d < bd){ bd = d; best = ln; } });
+    if(best && bd <= Math.max(2, best.h * 0.6)) best.marks.push(sp.x);
+  });
+  lines.forEach(ln => orderLine(ln.items, rtl));
+  const thr = gapThreshold(lines);
+  const gaps = [];
+  for(let k = 1; k < lines.length; k++) gaps.push(lines[k - 1].y - lines[k].y);
+  const sorted = gaps.slice().sort((a, b) => a - b);
+  const med = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+  const paras = [];
+  let cur = [];
+  lines.forEach((ln, k) => {
+    if(k > 0 && med > 0 && (lines[k - 1].y - ln.y) > med * 1.45 && cur.length){ paras.push(cur.join(" ")); cur = []; }
+    const text = joinOrdered(ln.items, mode, thr, ln.marks).replace(/\s+/g, " ").trim();
+    if(text) cur.push(text);
+  });
+  if(cur.length) paras.push(cur.join(" "));
+  const out = [];
+  paras.forEach(p => p.split(ORN_SPLIT).forEach(q => { q = q.trim(); if(q) out.push(q); }));
+  return out;
+}
+/* A lone letter between spaces is almost always a broken piece of a word (e.g. «رن ج»). */
+const FRAG_RE = /^[\u0621-\u064A\u067E\u0686\u0698\u06A9\u06AF\u06CC]$/;
+function endsLetter(s){ return /[\u0621-\u064A\u067E\u0686\u0698\u06A9\u06AF\u06CC]$/.test(s); }
+function mergeFragments(t){
+  const tok = t.split(" ");
+  const out = [];
+  for(let i = 0; i < tok.length; i++){
+    const w = tok[i];
+    if(w.length === 1 && FRAG_RE.test(w) && w !== "و"){
+      const next = i + 1 < tok.length ? tok[i + 1] : "";
+      if(!/^[\d۰-۹٠-٩]/.test(next)){
+        const prev = out[out.length - 1];
+        if(prev && prev !== "و" && endsLetter(prev)){ out[out.length - 1] = prev + w; continue; }
+        if(next && /^[\u0621-\u06FF]/.test(next)){ tok[i + 1] = w + next; continue; }
+      }
+    }
+    out.push(w);
+  }
+  return out.join(" ");
+}
+function fixPersian(t){
+  t = t.normalize("NFKC");
+  t = t.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\u0640/g, "").replace(DIAC_RE, "");
+  t = t.replace(/\s+/g, " ").trim();
+  t = mergeFragments(t);
+  t = t.replace(/(^|\s)(ن?می)\s+(?=[\u0622-\u06CC])/g, "$1$2\u200c");
+  t = t.replace(/\s+(ها|های|هایی|ترین|تری)(?=[\s.,،؛:!?؟)»]|$)/g, "\u200c$1");
+  return t.replace(/\s+/g, " ").trim();
+}
+const HEAD_KW = /^(فصل|بخش|مقدمه|پیشگفتار|پیش‌گفتار|درآمد|سخن|گفتار|پایان|chapter|part|prologue|epilogue)(\s|$|[:\-–—.])/i;
+function isNumberOnly(s){ return /^[\d۰-۹٠-٩\s\-–—.،]+$/.test(s); }
+function isHeading(par, first){
+  const p = par.trim();
+  if(p.length > 70) return false;
+  if(HEAD_KW.test(p)) return true;
+  const words = p.split(/\s+/).length;
+  return first && p.length <= 50 && words <= 7 && !/[.!?؟:،؛,]$/.test(p);
+}
+/* ---------- end text extraction ---------- */
+
+/* ---------- other file formats ---------- */
+function decodeEntities(s){
+  return s.replace(/&#x([0-9a-fA-F]+);/g, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+          .replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(parseInt(d, 10)))
+          .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+}
+function docxParagraphs(xml){
+  const out = [];
+  xml.split(/<\/w:p>/).forEach(chunk => {
+    let t = "";
+    const re = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g;
+    let m;
+    while((m = re.exec(chunk)) !== null){ t += m[1] !== undefined ? m[1] : " "; }
+    t = decodeEntities(t).replace(/\s+/g, " ").trim();
+    if(t) out.push(t);
+  });
+  return out;
+}
+function htmlParagraphs(html){
+  let h = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ");
+  h = h.replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section)>|<br\s*\/?>/gi, "\n");
+  h = h.replace(/<[^>]+>/g, " ");
+  h = decodeEntities(h);
+  return h.split(/\n+/).map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+function resolvePath(base, href){
+  href = decodeURIComponent(href.split("#")[0]);
+  const parts = (base ? base.split("/") : []).concat(href.split("/"));
+  const out = [];
+  parts.forEach(p => { if(p === "..") out.pop(); else if(p && p !== ".") out.push(p); });
+  return out.join("/");
+}
+async function epubParagraphs(zip){
+  const cont = await zip.file("META-INF/container.xml").async("string");
+  const opfPath = /full-path="([^"]+)"/.exec(cont)[1];
+  const opf = await zip.file(opfPath).async("string");
+  const base = opfPath.includes("/") ? opfPath.slice(0, opfPath.lastIndexOf("/")) : "";
+  const manifest = {};
+  (opf.match(/<item\s[^>]*>/g) || []).forEach(tag => {
+    const id = /\bid="([^"]+)"/.exec(tag), href = /\bhref="([^"]+)"/.exec(tag);
+    if(id && href) manifest[id[1]] = href[1];
+  });
+  const spine = [];
+  (opf.match(/<itemref\s[^>]*>/g) || []).forEach(tag => { const r = /idref="([^"]+)"/.exec(tag); if(r && manifest[r[1]]) spine.push(manifest[r[1]]); });
+  const out = [];
+  for(const href of spine){
+    const f = zip.file(resolvePath(base, href));
+    if(!f) continue;
+    const paras = htmlParagraphs(await f.async("string"));
+    paras.forEach((p, k) => out.push({t: p, h: k === 0 && p.length <= 70}));
+  }
+  return out;
+}
+
+/* ---------- library ---------- */
+let lib = [];
+let libMode = store.get("libmode", "grid");
+async function loadLib(){
+  lib = (await dbAll("books")).sort((a, b) => (b.opened || 0) - (a.opened || 0));
+  renderLib();
+}
+function bookPct(b){ return b.count > 1 ? Math.round(((b.idx || 0) / (b.count - 1)) * 100) : 0; }
+function renderLib(){
+  const g = $("grid");
+  g.innerHTML = "";
+  g.className = libMode === "list" ? "list" : "";
+  $("empty").style.display = lib.length ? "none" : "flex";
+  $("libTools").style.display = lib.length ? "flex" : "none";
+  $("libCount").textContent = lib.length ? fa(lib.length) + " کتاب" : "";
+  const cur = lib.find(b => (b.idx || 0) > 0 && bookPct(b) < 98);
+  $("contStrip").classList.toggle("on", !!cur);
+  if(cur){
+    $("csT").textContent = cur.name; $("csS").textContent = fa(bookPct(cur)) + "٪ خوانده شده";
+    $("contStrip").onclick = () => openBook(cur.id);
+  }
+  const q = $("libQ").value.trim();
+  let list = lib.filter(b => !q || b.name.includes(q));
+  const sort = $("libSort").value;
+  if(sort === "name") list = list.slice().sort((a, b) => a.name.localeCompare(b.name, "fa"));
+  else if(sort === "progress") list = list.slice().sort((a, b) => bookPct(b) - bookPct(a));
+  list.forEach(b => {
+    const card = document.createElement("div");
+    card.className = "book";
+    const pct = bookPct(b);
+    let cover;
+    if(b.cover){ cover = document.createElement("img"); cover.className = "cover"; cover.src = b.cover; cover.alt = ""; }
+    else{ cover = document.createElement("div"); cover.className = "coverph"; cover.textContent = b.name; }
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = '<div class="bt"></div><div class="bar"><i></i></div><div class="pct"></div>';
+    meta.querySelector(".bt").textContent = b.name;
+    meta.querySelector("i").style.width = pct + "%";
+    const pc = meta.querySelector(".pct");
+    if(pct >= 98){ pc.textContent = "✓ تمام‌شده"; pc.className = "pct done"; }
+    else pc.textContent = pct ? fa(pct) + "٪ خوانده شده" : fa(b.pages) + " صفحه";
+    const del = document.createElement("button");
+    del.className = "del"; del.setAttribute("aria-label", "حذف کتاب");
+    del.innerHTML = '<svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    del.addEventListener("click", e => { e.stopPropagation(); askDelete(b); });
+    card.append(cover, meta, del);
+    card.addEventListener("click", () => openBook(b.id));
+    g.appendChild(card);
+  });
+}
+$("libQ").addEventListener("input", renderLib);
+$("libSort").value = store.get("sort", "recent");
+$("libSort").addEventListener("change", () => { store.set("sort", $("libSort").value); renderLib(); });
+$("viewBtn").addEventListener("click", () => { libMode = libMode === "list" ? "grid" : "list"; store.set("libmode", libMode); renderLib(); });
+
+let delTarget = null;
+function askDelete(b){ delTarget = b; $("delTitle").textContent = "حذف «" + b.name + "»؟"; openSheet("sheetDel"); }
+$("delNo").addEventListener("click", closeSheets);
+$("delOk").addEventListener("click", async () => {
+  if(!delTarget) return;
+  await dbDel("books", delTarget.id); await dbDel("texts", delTarget.id);
+  delTarget = null; closeSheets(); await loadLib(); toast("کتاب حذف شد.");
+});
+
+/* ---------- import ---------- */
+async function makeCover(pdf){
+  try{
+    const page = await pdf.getPage(1);
+    const v0 = page.getViewport({scale: 1});
+    const vp = page.getViewport({scale: 300 / v0.width});
+    const c = document.createElement("canvas");
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    await page.render({canvasContext: c.getContext("2d"), viewport: vp}).promise;
+    return c.toDataURL("image/jpeg", 0.7);
+  }catch(e){ return ""; }
+}
+async function saveNewBook(name, sents, pages, cover){
+  if(!sents.length){ hideBusy(); toast("متنی در این فایل پیدا نشد. اگر PDF اسکن‌شده (عکس) است، فعلاً پشتیبانی نمی‌شود."); return; }
+  const id = "b" + Date.now();
+  const meta = {id, name, pages, count: sents.length, cover: cover || "", idx: 0, marks: [], added: Date.now(), opened: Date.now()};
+  await dbPut("books", meta);
+  await dbPut("texts", {id, sentences: sents});
+  hideBusy();
+  await loadLib();
+  toast("کتاب به کتابخانه اضافه شد.");
+}
+async function importPdf(file){
+  showBusy("در حال باز کردن فایل…", 0);
+  try{
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    const total = pdf.numPages, sents = [];
+    for(let n = 1; n <= total; n++){
+      showBusy("خواندن متن: صفحهٔ " + fa(n) + " از " + fa(total), n / total);
+      const page = await pdf.getPage(n);
+      const tc = await page.getTextContent();
+      const pars = extractParagraphs(tc.items);
+      pars.forEach((par, k) => {
+        if(isNumberOnly(par)) return;
+        const head = isHeading(par, k === 0);
+        splitSentences(fixPersian(par)).forEach(t => sents.push(head ? {p: n, t, h: 1} : {p: n, t}));
+      });
+      page.cleanup();
+    }
+    showBusy("در حال ساخت جلد…", 1);
+    const cover = await makeCover(pdf);
+    await saveNewBook(file.name.replace(/\.pdf$/i, ""), sents, total, cover);
+  }catch(e){
+    console.error(e); hideBusy(); toast("باز کردن فایل ممکن نشد. فایل دیگری را امتحان کنید.");
+  }
+}
+async function importParas(name, paras){
+  showBusy("در حال آماده‌سازی متن…", 0.5);
+  try{
+    const sents = [];
+    let page = 1, chars = 0;
+    paras.forEach(par => {
+      const o = typeof par === "string" ? {t: par} : par;
+      const raw = (o.t || "").trim();
+      if(!raw || isNumberOnly(raw)) return;
+      const head = o.h || isHeading(raw, false) && HEAD_KW.test(raw);
+      splitSentences(fixPersian(raw)).forEach(t => sents.push(head ? {p: page, t, h: 1} : {p: page, t}));
+      chars += raw.length;
+      if(chars >= 1800){ page++; chars = 0; }
+    });
+    const pages = sents.length ? sents[sents.length - 1].p : 1;
+    await saveNewBook(name, sents, pages, "");
+  }catch(e){ console.error(e); hideBusy(); toast("افزودن متن ممکن نشد."); }
+}
+async function importTxt(file){
+  showBusy("در حال خواندن فایل…", 0.3);
+  try{ await importParas(file.name.replace(/\.txt$/i, ""), (await file.text()).split(/\n+/)); }
+  catch(e){ hideBusy(); toast("خواندن فایل ممکن نشد."); }
+}
+async function importZipBook(file){
+  showBusy("در حال باز کردن فایل…", 0.3);
+  try{
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    if(zip.file("META-INF/container.xml")){
+      await importParas(file.name.replace(/\.epub$/i, ""), await epubParagraphs(zip));
+    }else if(zip.file("word/document.xml")){
+      await importParas(file.name.replace(/\.docx$/i, ""), docxParagraphs(await zip.file("word/document.xml").async("string")));
+    }else{ hideBusy(); toast("این فایل پشتیبانی نمی‌شود."); }
+  }catch(e){ console.error(e); hideBusy(); toast("باز کردن فایل ممکن نشد."); }
+}
+async function importFile(file){
+  const n = (file.name || "").toLowerCase();
+  if(n.endsWith(".pdf") || file.type === "application/pdf") return importPdf(file);
+  if(n.endsWith(".txt") || file.type === "text/plain") return importTxt(file);
+  if(n.endsWith(".docx") || n.endsWith(".epub")) return importZipBook(file);
+  const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  const sig = String.fromCharCode(...head);
+  if(sig.startsWith("%PDF")) return importPdf(file);
+  if(head[0] === 0x50 && head[1] === 0x4B) return importZipBook(file);
+  return importTxt(file);
+}
+$("addBtn").addEventListener("click", () => openSheet("sheetAdd"));
+$("closeAdd").addEventListener("click", closeSheets);
+$("addFile").addEventListener("click", () => { closeSheets(); $("file").click(); });
+$("file").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if(f) importFile(f); });
+$("addPaste").addEventListener("click", () => { closeSheets(); openSheet("sheetPaste"); });
+$("pasteClose").addEventListener("click", closeSheets);
+$("pasteGo").addEventListener("click", async () => {
+  const text = $("pasteText").value.trim();
+  if(!text){ toast("متنی وارد نشده است."); return; }
+  const title = $("pasteTitle").value.trim() || "متن چسبانده‌شده";
+  closeSheets(); $("pasteText").value = ""; $("pasteTitle").value = "";
+  await importParas(title, text.split(/\n+/));
+});
+window.__checkIncoming = async () => {
+  if(!A) return;
+  const r = A.takeIncoming();
+  if(!r) return;
+  const k = r.lastIndexOf("|");
+  const name = r.slice(0, k), file = r.slice(k + 1);
+  try{
+    const resp = await fetch("https://appassets.androidplatform.net/exports/" + file);
+    const blob = await resp.blob();
+    await importFile(new File([blob], name, {type: blob.type}));
+  }catch(e){ toast("باز کردن فایل ممکن نشد."); }
+  try{ A.deleteExport(file); }catch(e){}
+  go("lib");
+};
+
+/* ---------- reader state ---------- */
+let book = null, sents = [], idx = 0, playing = false, token = 0, curPage = -1;
+const pageFirst = {};
+function firstOfPage(p){ return pageFirst[p]; }
+function pageList(){ return Object.keys(pageFirst).map(Number).sort((a, b) => a - b); }
+
+async function openBook(id){
+  const meta = lib.find(b => b.id === id);
+  const t = await dbGet("texts", id);
+  if(!meta || !t){ toast("خواندن کتاب ممکن نشد."); return; }
+  book = meta; sents = t.sentences;
+  if(!book.marks) book.marks = [];
+  Object.keys(pageFirst).forEach(k => delete pageFirst[k]);
+  sents.forEach((s, i) => { if(!(s.p in pageFirst)) pageFirst[s.p] = i; });
+  idx = Math.max(0, Math.min(meta.idx || 0, sents.length - 1));
+  curPage = -1;
+  $("rTitle").textContent = meta.name;
+  $("seek").max = sents.length - 1;
+  $("pFrom").max = $("pTo").max = meta.pages;
+  $("pFrom").value = sents[idx].p; $("pTo").value = Math.min(meta.pages, sents[idx].p + 4);
+  meta.opened = Date.now();
+  go("read");
+  setIdx(idx, true);
+  if(A) prefetch(idx);
+}
+function hasMark(i){ return book.marks.some(m => m.i === i); }
+function renderPage(){
+  const p = sents[idx].p;
+  curPage = p;
+  const box = $("pageText");
+  box.innerHTML = "";
+  for(let i = pageFirst[p]; i < sents.length && sents[i].p === p; i++){
+    const sp = document.createElement("span");
+    sp.className = "s" + (sents[i].h ? " hd" : "") + (hasMark(i) ? " mk" : "");
+    sp.dataset.i = i; sp.textContent = sents[i].t + " ";
+    let timer = null, fired = false, sx = 0, sy = 0;
+    sp.addEventListener("pointerdown", e => { fired = false; sx = e.clientX; sy = e.clientY; timer = setTimeout(() => { fired = true; openSentenceMenu(i); }, 450); });
+    sp.addEventListener("pointermove", e => { if(Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) clearTimeout(timer); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(ev => sp.addEventListener(ev, () => clearTimeout(timer)));
+    sp.addEventListener("click", () => { if(fired){ fired = false; return; } jump(i); });
+    box.appendChild(sp);
+  }
+  $("textWrap").scrollTop = 0;
+}
+let saveTimer = null;
+function setIdx(i, force){
+  idx = Math.max(0, Math.min(sents.length - 1, i));
+  if(force || sents[idx].p !== curPage) renderPage();
+  const box = $("pageText");
+  const prev = box.querySelector(".s.on"); if(prev) prev.classList.remove("on");
+  const cur = box.querySelector('.s[data-i="' + idx + '"]');
+  if(cur){ cur.classList.add("on"); cur.scrollIntoView({block: "center", behavior: "smooth"}); }
+  $("seek").value = idx;
+  $("pg").textContent = "صفحهٔ " + fa(sents[idx].p) + " از " + fa(book.pages);
+  $("markIcon").style.fill = hasMark(idx) ? "currentColor" : "none";
+  $("driveT").textContent = book.name;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveProgress, 700);
+}
+async function saveProgress(){
+  if(!book) return;
+  book.idx = idx;
+  try{ await dbPut("books", book); }catch(e){}
+}
+
+/* ---------- bookmarks and chapters ---------- */
+async function toggleMark(i){
+  const k = book.marks.findIndex(m => m.i === i);
+  if(k >= 0) book.marks.splice(k, 1);
+  else book.marks.push({i, t: sents[i].t.slice(0, 120), p: sents[i].p, ts: Date.now()});
+  await saveProgress();
+  const sp = $("pageText").querySelector('.s[data-i="' + i + '"]');
+  if(sp) sp.classList.toggle("mk", hasMark(i));
+  $("markIcon").style.fill = hasMark(idx) ? "currentColor" : "none";
+  toast(k >= 0 ? "نشانک برداشته شد." : "نشانک ذخیره شد.");
+}
+function computeChapters(){
+  const cands = [];
+  sents.forEach((s, i) => { if(s.h) cands.push({i, t: s.t, p: s.p}); });
+  const count = {};
+  cands.forEach(c => { count[c.t] = (count[c.t] || 0) + 1; });
+  return cands.filter(c => count[c.t] < 3);
+}
+let listTab = "ch";
+function renderList(){
+  const box = $("listBox"); box.innerHTML = "";
+  $("tabCh").classList.toggle("on", listTab === "ch"); $("tabMk").classList.toggle("on", listTab === "mk");
+  const rows = listTab === "ch" ? computeChapters() : book.marks.slice().sort((a, b) => a.i - b.i);
+  if(!rows.length){
+    const p = document.createElement("p"); p.className = "note"; p.style.padding = "12px 0";
+    p.textContent = listTab === "ch" ? "فصلی شناسایی نشد." : "هنوز نشانکی ندارید. روی علامت نشانک بالای صفحه بزنید.";
+    box.appendChild(p); return;
+  }
+  rows.forEach(r => {
+    const li = document.createElement("div"); li.className = "li";
+    const tx = document.createElement("div"); tx.className = "tx";
+    tx.textContent = r.t; const sm = document.createElement("small"); sm.textContent = "صفحهٔ " + fa(r.p); tx.appendChild(sm);
+    li.appendChild(tx);
+    if(listTab === "mk"){
+      const x = document.createElement("button"); x.className = "x"; x.textContent = "✕"; x.setAttribute("aria-label", "حذف نشانک");
+      x.addEventListener("click", async e => { e.stopPropagation(); await toggleMark(r.i); renderList(); });
+      li.appendChild(x);
+    }
+    li.addEventListener("click", () => { closeSheets(); jump(r.i); });
+    box.appendChild(li);
+  });
+}
+$("listBtn").addEventListener("click", () => { renderList(); openSheet("sheetList"); });
+$("tabCh").addEventListener("click", () => { listTab = "ch"; renderList(); });
+$("tabMk").addEventListener("click", () => { listTab = "mk"; renderList(); });
+$("closeList").addEventListener("click", closeSheets);
+$("markBtn").addEventListener("click", () => { if(book) toggleMark(idx); });
+
+/* ---------- pronunciation fixes + speech text preparation ---------- */
+function getPron(){ try{ const a = JSON.parse(store.get("pron", "[]")); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function setPron(a){ store.set("pron", JSON.stringify(a)); }
+function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function applyPron(text){
+  getPron().forEach(r => {
+    if(!r.f) return;
+    const re = new RegExp("(^|[^\\u0600-\\u06FF\\u200c])" + escRe(r.f) + "(?![\\u0600-\\u06FF\\u200c])", "g");
+    text = text.replace(re, (m, a) => a + r.t);
+  });
+  return text;
+}
+const ONES = ["صفر","یک","دو","سه","چهار","پنج","شش","هفت","هشت","نه","ده","یازده","دوازده","سیزده","چهارده","پانزده","شانزده","هفده","هجده","نوزده"];
+const TENS = ["","","بیست","سی","چهل","پنجاه","شصت","هفتاد","هشتاد","نود"];
+const HUND = ["","صد","دویست","سیصد","چهارصد","پانصد","ششصد","هفتصد","هشتصد","نهصد"];
+const SCALE = ["","هزار","میلیون","میلیارد"];
+function below1000(n){
+  const parts = [];
+  const h = Math.floor(n / 100), r = n % 100;
+  if(h) parts.push(HUND[h]);
+  if(r){
+    if(r < 20) parts.push(ONES[r]);
+    else { const t = Math.floor(r / 10), o = r % 10; parts.push(TENS[t] + (o ? " و " + ONES[o] : "")); }
+  }
+  return parts.join(" و ");
+}
+function numToWords(str){
+  if(str.length > 12) return str;
+  let n = parseInt(str, 10);
+  if(isNaN(n)) return str;
+  if(n === 0) return "صفر";
+  const groups = [];
+  let i = 0;
+  while(n > 0){
+    const g = n % 1000; n = Math.floor(n / 1000);
+    if(g){
+      let w = below1000(g);
+      if(i === 1 && g === 1) w = "";
+      groups.unshift((w + " " + SCALE[i]).trim());
+    }
+    i++;
+  }
+  return groups.join(" و ");
+}
+function normalizeForSpeech(text){
+  let t = applyPron(text);
+  t = t.replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 1776));
+  t = t.replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 1632));
+  t = t.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/ـ/g, "");
+  t = t.replace(/(\d+)[.٫,](\d+)/g, (m, a, b) => numToWords(a) + " ممیز " + numToWords(b));
+  t = t.replace(/\d+/g, m => numToWords(m));
+  t = t.replace(/[٪%]/g, " درصد ");
+  t = t.replace(/[()\[\]{}«»"“”]/g, " ");
+  t = t.replace(new RegExp("[" + ORN + "]+", "g"), " ");
+  t = t.replace(/\u200c/g, "");
+  t = t.replace(/\s*[—–]\s*/g, "، ");
+  t = t.replace(/\s+/g, " ").trim();
+  return t || text;
+}
+
+/* ---------- speech (offline voice inside the app) ---------- */
+const pending = new Map();
+let nid = 0;
+window.__ttsDone = (id, b64, sr) => { const p = pending.get(id); if(p){ pending.delete(id); p.res({b64, sr}); } };
+window.__ttsFail = (id, msg) => { const p = pending.get(id); if(p){ pending.delete(id); p.rej(new Error(msg)); } };
+function nativeSynth(text){
+  return new Promise((res, rej) => {
+    const id = ++nid;
+    pending.set(id, {res, rej});
+    A.synth(id, normalizeForSpeech(text), voice(), rate());
+  });
+}
+function pcmToWavUrl(b64, sr){
+  const bin = atob(b64), n = bin.length;
+  const buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, s) => { for(let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n, true);
+  const u8 = new Uint8Array(buf, 44);
+  for(let i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([buf], {type: "audio/wav"}));
+}
+const GAP = 350;
+const audio = new Audio();
+const cache = new Map();
+function cacheKey(i){ return i + "|" + voice() + "|" + $("rate").value + "|" + store.get("pron", ""); }
+function getAudioUrl(i){
+  if(i >= sents.length) return Promise.resolve(null);
+  const k = cacheKey(i);
+  if(!cache.has(k)){
+    if(cache.size > 12){
+      const first = cache.keys().next().value;
+      cache.get(first).then(u => u && URL.revokeObjectURL(u)).catch(() => {});
+      cache.delete(first);
+    }
+    const p = nativeSynth(sents[i].t).then(r => pcmToWavUrl(r.b64, r.sr)).catch(e => { cache.delete(k); throw e; });
+    cache.set(k, p);
+  }
+  return cache.get(k);
+}
+function prefetch(from){ for(let k = 0; k < 3; k++) getAudioUrl(from + k).catch(() => {}); }
+function clearCache(){ cache.forEach(p => p.then(u => u && URL.revokeObjectURL(u)).catch(() => {})); cache.clear(); }
+
+async function previewSpeak(text){
+  if(!A){ toast("این بخش داخل برنامهٔ اندروید کار می‌کند."); return; }
+  if(playing) stopSpeech();
+  try{
+    toast("در حال آماده‌سازی…");
+    const r = await nativeSynth(text);
+    const a = new Audio(pcmToWavUrl(r.b64, r.sr));
+    await a.play();
+  }catch(e){ toast("پخش نمونه ممکن نشد."); }
+}
+
+function pbUpdate(){
+  if(!A || !book) return;
+  try{ A.playbackState(playing, book.name, "صفحهٔ " + fa(sents[idx].p) + " از " + fa(book.pages)); }catch(e){}
+}
+function setPlayUi(on, wait){
+  $("play").classList.toggle("on", on);
+  $("play").classList.toggle("wait", !!wait);
+  $("rHint").textContent = wait ? "در حال آماده‌سازی صدا…" : "";
+  const icon = on ? '<rect x="6" y="4" width="4.5" height="16" rx="1"/><rect x="13.5" y="4" width="4.5" height="16" rx="1"/>' : '<polygon points="7 4 20 12 7 20"/>';
+  $("fbIcon").innerHTML = icon; $("dIcon").innerHTML = icon;
+}
+async function speak(){
+  const my = ++token;
+  setIdx(idx);
+  setPlayUi(true, true);
+  pbUpdate();
+  try{
+    const url = await getAudioUrl(idx);
+    if(my !== token) return;
+    setPlayUi(true, false);
+    audio.onended = () => {
+      if(my !== token || !playing) return;
+      if(idx + 1 >= sents.length){ stopSpeech(); toast("به پایان کتاب رسیدید."); return; }
+      setTimeout(() => { if(my === token && playing){ setIdx(idx + 1); speak(); } }, GAP);
+    };
+    audio.src = url;
+    await audio.play();
+    prefetch(idx + 1);
+  }catch(e){
+    if(my === token){ stopSpeech(); toast("خواندن شروع نشد: " + e.message); }
+  }
+}
+function stopSpeech(){
+  playing = false; token++;
+  audio.pause();
+  setPlayUi(false, false);
+  saveProgress();
+  pbUpdate();
+}
+function jump(i){
+  setIdx(i);
+  if(playing) speak(); else if(A) prefetch(idx);
+}
+function togglePlay(){
+  if(!book) return;
+  if(!A){ toast("این صفحه باید داخل برنامهٔ اندروید اجرا شود."); return; }
+  if(playing) stopSpeech();
+  else{
+    if(!store.get("askedNotif", "")){ store.set("askedNotif", "1"); try{ A.askNotifications(); }catch(e){} }
+    playing = true; speak();
+  }
+}
+$("play").addEventListener("click", togglePlay);
+$("fbPlay").addEventListener("click", togglePlay);
+$("dPlay").addEventListener("click", togglePlay);
+$("sNext").addEventListener("click", () => jump(idx + 1));
+$("sPrev").addEventListener("click", () => jump(idx - 1));
+$("dNext").addEventListener("click", () => jump(idx + 1));
+$("dPrev").addEventListener("click", () => jump(idx - 1));
+$("pNext").addEventListener("click", () => {
+  const pages = pageList(), at = pages.indexOf(sents[idx].p);
+  if(at < pages.length - 1) jump(firstOfPage(pages[at + 1]));
+});
+$("pPrev").addEventListener("click", () => {
+  const pages = pageList(), p = sents[idx].p, at = pages.indexOf(p);
+  if(idx > firstOfPage(p)) jump(firstOfPage(p));
+  else if(at > 0) jump(firstOfPage(pages[at - 1]));
+});
+$("seek").addEventListener("input", e => { const i = Number(e.target.value); $("pg").textContent = "صفحهٔ " + fa(sents[i].p) + " از " + fa(book.pages); });
+$("seek").addEventListener("change", e => jump(Number(e.target.value)));
+window.__remote = cmd => {
+  if(!book) return;
+  if(cmd === "play"){ if(!playing){ playing = true; speak(); } }
+  else if(cmd === "pause"){ if(playing) stopSpeech(); }
+  else if(cmd === "toggle") togglePlay();
+  else if(cmd === "next") jump(idx + 1);
+  else if(cmd === "prev") jump(idx - 1);
+};
+
+function leaveReader(){
+  stopSpeech(); clearCache();
+  $("readView").classList.remove("focus"); $("drive").classList.remove("on");
+  sleepEnd = 0; updateSleepChip();
+  if(A){ try{ A.playbackStop(); }catch(e){} }
+  go("lib"); loadLib();
+}
+$("backBtn").addEventListener("click", leaveReader);
+window.__onBack = () => {
+  if($("onb").classList.contains("on")) return true;
+  if($("drive").classList.contains("on")){ $("drive").classList.remove("on"); return true; }
+  if($("readView").classList.contains("focus")){ $("readView").classList.remove("focus"); return true; }
+  if(sheetOpen()){ closeSheets(); return true; }
+  if(view === "read"){ leaveReader(); return true; }
+  if(view !== "lib"){ go("lib"); return true; }
+  return false;
+};
+
+/* ---------- speed chips, sleep timer, focus and driving modes ---------- */
+function setRate(v){
+  $("rate").value = v; $("rateVal").textContent = v; store.set("rate", String(v));
+  clearCache(); applyLook();
+  if(playing) speak(); else if(book && A) prefetch(idx);
+}
+document.querySelectorAll(".chip[data-r]").forEach(c => c.addEventListener("click", () => setRate(c.dataset.r)));
+let sleepEnd = 0, sleepTick = null;
+function updateSleepChip(){
+  const chip = $("sleepBtn");
+  if(sleepEnd > Date.now()){ chip.classList.add("on"); chip.textContent = "تایمر: " + fa(Math.ceil((sleepEnd - Date.now()) / 60000)) + " دقیقه"; }
+  else{ chip.classList.remove("on"); chip.textContent = "تایمر خواب"; }
+}
+function startSleep(min){
+  clearInterval(sleepTick);
+  if(!min){ sleepEnd = 0; updateSleepChip(); toast("تایمر خاموش شد."); return; }
+  sleepEnd = Date.now() + min * 60000; updateSleepChip();
+  sleepTick = setInterval(() => {
+    if(sleepEnd && Date.now() >= sleepEnd){
+      clearInterval(sleepTick); sleepEnd = 0; updateSleepChip();
+      if(playing) stopSpeech();
+      toast("تایمر خواب تمام شد.");
+    }else updateSleepChip();
+  }, 15000);
+  toast("خواندن بعد از " + fa(min) + " دقیقه متوقف می‌شود.");
+}
+$("sleepBtn").addEventListener("click", () => openSheet("sheetSleep"));
+document.querySelectorAll("[data-sl]").forEach(b => b.addEventListener("click", () => { closeSheets(); startSleep(Number(b.dataset.sl)); }));
+$("focusBtn").addEventListener("click", () => $("readView").classList.add("focus"));
+$("fbExit").addEventListener("click", () => $("readView").classList.remove("focus"));
+$("driveBtn").addEventListener("click", () => $("drive").classList.add("on"));
+$("dExit").addEventListener("click", () => $("drive").classList.remove("on"));
+
+/* ---------- sentence menu, words, sharing as image ---------- */
+let menuIdx = 0, curWord = "";
+function openSentenceMenu(i){
+  menuIdx = i;
+  $("sentText").textContent = sents[i].t;
+  $("smMark").textContent = hasMark(i) ? "برداشتن نشانک" : "نشانک";
+  const box = $("wordChips"); box.innerHTML = "";
+  const seen = new Set();
+  sents[i].t.split(/\s+/).forEach(w => {
+    w = w.replace(/[.,!?؟،؛:()«»"'“”…\-–—]/g, "").replace(/\u200c+$/, "");
+    if(w.length < 2 || seen.has(w) || seen.size >= 40) return;
+    seen.add(w);
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = w;
+    b.addEventListener("click", () => { curWord = w; $("wordT").textContent = "«" + w + "»"; closeSheets(); openSheet("sheetWord"); });
+    box.appendChild(b);
+  });
+  openSheet("sheetSent");
+}
+$("closeSent").addEventListener("click", closeSheets);
+$("smPlay").addEventListener("click", () => { closeSheets(); jump(menuIdx); if(!playing) togglePlay(); });
+$("smMark").addEventListener("click", async () => { await toggleMark(menuIdx); closeSheets(); });
+$("smGoogle").addEventListener("click", () => googleSearch(sents[menuIdx].t.slice(0, 120)));
+$("smImg").addEventListener("click", () => { closeSheets(); shareQuoteImage(sents[menuIdx].t); });
+$("closeWord").addEventListener("click", closeSheets);
+$("wMean").addEventListener("click", () => googleSearch("معنی " + curWord));
+$("wPron").addEventListener("click", () => { closeSheets(); $("pf").value = curWord; $("pt").value = ""; renderPron(); openSheet("sheetPron"); });
+
+function shareQuoteImage(text){
+  if(!A){ toast("این بخش داخل برنامهٔ اندروید کار می‌کند."); return; }
+  const W = 1080, H = 1350, M = 100;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, "#1b2548"); grad.addColorStop(1, "#2d3f80");
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  g.fillStyle = "rgba(56,189,248,0.18)"; g.font = "bold 420px serif"; g.direction = "ltr"; g.textAlign = "left"; g.fillText("”", 70, 420);
+  const fam = '"Vazirmatn","Noto Naskh Arabic","Noto Sans Arabic",sans-serif';
+  g.direction = "rtl"; g.textAlign = "right"; g.fillStyle = "#ffffff";
+  let size = 58, lines = [];
+  const maxW = W - 2 * M, maxH = 820;
+  for(; size >= 32; size -= 4){
+    g.font = size + "px " + fam;
+    lines = []; let line = "";
+    text.split(/\s+/).forEach(w => {
+      const test = line ? line + " " + w : w;
+      if(g.measureText(test).width > maxW && line){ lines.push(line); line = w; } else line = test;
+    });
+    if(line) lines.push(line);
+    if(lines.length * size * 1.9 <= maxH) break;
+  }
+  let y = 300;
+  lines.forEach(l => { g.fillText(l, W - M, y); y += size * 1.9; });
+  g.font = "36px " + fam; g.fillStyle = "#7dd3fc";
+  g.fillText("— " + (book ? book.name : ""), W - M, H - 190);
+  g.font = "bold 44px " + fam; g.fillStyle = "#ffffff"; g.fillText(CONFIG.appName, W - M, H - 110);
+  g.font = "30px " + fam; g.fillStyle = "rgba(255,255,255,0.65)"; g.fillText("کتاب‌ها را با صدای فارسی گوش کنید", W - M, H - 62);
+  c.toBlob(blob => {
+    if(!blob){ toast("ساخت تصویر ممکن نشد."); return; }
+    const fr = new FileReader();
+    fr.onload = () => A.shareImage("quote-" + Date.now() + ".png", String(fr.result).split(",")[1]);
+    fr.readAsDataURL(blob);
+  }, "image/png");
+}
+
+
+/* ---------- fixing text mistakes by hand ---------- */
+async function persistTexts(){ await dbPut("texts", {id: book.id, sentences: sents}); }
+function refreshAfterEdit(){ clearCache(); curPage = -1; setIdx(idx, true); }
+$("smEdit").addEventListener("click", () => { closeSheets(); $("editText").value = sents[menuIdx].t; openSheet("sheetEdit"); });
+$("closeEdit").addEventListener("click", closeSheets);
+$("edSave").addEventListener("click", async () => {
+  const v = $("editText").value.replace(/\s+/g, " ").trim();
+  if(!v){ toast("متن خالی است."); return; }
+  sents[menuIdx].t = v;
+  await persistTexts(); closeSheets(); refreshAfterEdit(); toast("ذخیره شد.");
+});
+$("edRepl").addEventListener("click", () => { closeSheets(); $("rpFind").value = ""; $("rpWith").value = ""; openSheet("sheetRepl"); });
+$("closeRepl").addEventListener("click", closeSheets);
+$("rpGo").addEventListener("click", async () => {
+  const find = $("rpFind").value, rep = $("rpWith").value;
+  if(!find){ toast("متنی برای جست‌وجو وارد نشده است."); return; }
+  let count = 0;
+  sents.forEach(s => { if(s.t.includes(find)){ count += s.t.split(find).length - 1; s.t = s.t.split(find).join(rep); } });
+  if(!count){ toast("موردی پیدا نشد."); return; }
+  await persistTexts(); closeSheets(); refreshAfterEdit(); toast(fa(count) + " مورد جایگزین شد.");
+});
+
+/* ---------- pronunciation editor ---------- */
+function renderPron(){
+  const box = $("pronList"); box.innerHTML = "";
+  const a = getPron();
+  if(!a.length){ const p = document.createElement("p"); p.className = "note"; p.style.padding = "8px 0"; p.textContent = "هنوز موردی اضافه نکرده‌اید."; box.appendChild(p); return; }
+  a.forEach((r, k) => {
+    const li = document.createElement("div"); li.className = "li";
+    const tx = document.createElement("div"); tx.className = "tx"; tx.textContent = r.f + "  ←  " + r.t;
+    const x = document.createElement("button"); x.className = "x"; x.textContent = "✕"; x.setAttribute("aria-label", "حذف");
+    x.addEventListener("click", () => { const b = getPron(); b.splice(k, 1); setPron(b); clearCache(); renderPron(); });
+    li.append(tx, x); box.appendChild(li);
+  });
+}
+$("pAdd").addEventListener("click", () => {
+  const f = $("pf").value.trim(), t = $("pt").value.trim();
+  if(!f || !t){ toast("هر دو کادر را پر کنید."); return; }
+  const a = getPron().filter(r => r.f !== f); a.push({f, t}); setPron(a);
+  clearCache(); $("pf").value = ""; $("pt").value = ""; renderPron(); toast("ذخیره شد.");
+});
+$("pHear").addEventListener("click", () => { const t = $("pt").value.trim() || $("pf").value.trim(); if(t) previewSpeak(t); });
+$("closePron").addEventListener("click", closeSheets);
+$("mPron").addEventListener("click", () => { renderPron(); openSheet("sheetPron"); });
+
+/* ---------- settings sheet ---------- */
+function openSettings(){
+  $("openBuild").style.display = (view === "read" && book) ? "" : "none";
+  openSheet("sheetSet");
+}
+$("setBtn").addEventListener("click", openSettings);
+$("mSet").addEventListener("click", openSettings);
+$("closeSet").addEventListener("click", closeSheets);
+$("rate").addEventListener("input", e => { $("rateVal").textContent = e.target.value; });
+$("rate").addEventListener("change", e => setRate(e.target.value));
+$("fs").addEventListener("input", () => { applyLook(); store.set("fs", $("fs").value); });
+$("fontSel").addEventListener("change", () => { applyLook(); store.set("font", $("fontSel").value); });
+$("rtSel").addEventListener("change", () => { applyLook(); store.set("rt", $("rtSel").value); });
+$("theme").addEventListener("change", () => { applyLook(); store.set("theme", $("theme").value); });
+$("voice").addEventListener("change", () => {
+  store.set("voice", voice()); clearCache(); startWarm();
+  if(playing) speak(); else if(book && A) prefetch(idx);
+});
+$("sample").addEventListener("click", () => previewSpeak("سلام، من صدای کتابخون هستم. کتاب‌های شما را با آرامش برایتان می‌خوانم."));
+
+/* ---------- audio file builder ---------- */
+let lastName = null;
+$("openBuild").addEventListener("click", () => { closeSheets(); openSheet("sheetBuild"); });
+$("closeBuild").addEventListener("click", closeSheets);
+function bnote(m, err){ const n = $("buildNote"); n.textContent = m; n.className = "note" + (err ? " err" : ""); }
+window.__buildProgress = (d, t) => bnote("در حال ساخت: " + fa(d) + " از " + fa(t) + " جمله…");
+window.__buildDone = name => {
+  lastName = name;
+  const p = $("player"); p.src = "https://appassets.androidplatform.net/exports/" + name; p.hidden = false;
+  $("save").disabled = false; $("share").disabled = false; $("build").disabled = false; $("cancelBuild").disabled = true;
+  bnote("فایل آماده شد. می‌توانید گوش دهید، ذخیره کنید یا بفرستید.");
+};
+window.__buildFail = msg => {
+  $("build").disabled = false; $("cancelBuild").disabled = true;
+  if(msg === "stopped") bnote("ساخت فایل متوقف شد."); else bnote("ساخت فایل کامل نشد: " + msg, true);
+};
+window.__fileMsg = (m, err) => { bnote(m, err); toast(m); };
+$("build").addEventListener("click", () => {
+  if(!A || !book) return;
+  const from = Math.max(1, Number($("pFrom").value) || 1);
+  const to = Math.min(book.pages, Number($("pTo").value) || from);
+  const items = sents.filter(s => s.p >= from && s.p <= to).map(s => normalizeForSpeech(s.t));
+  if(!items.length){ bnote("در این بازهٔ صفحه متنی نیست.", true); return; }
+  stopSpeech();
+  $("build").disabled = true; $("cancelBuild").disabled = false; $("save").disabled = true; $("share").disabled = true;
+  bnote("در حال شروع…");
+  A.buildAudio("ketabkhoon-" + Date.now() + ".wav", JSON.stringify(items), voice(), rate());
+});
+$("cancelBuild").addEventListener("click", () => { if(A) A.cancelBuild(); });
+$("save").addEventListener("click", () => { if(A && lastName) A.saveToDownloads(lastName); });
+$("share").addEventListener("click", () => { if(A && lastName) A.shareFile(lastName); });
+
+/* ---------- backup and restore ---------- */
+$("mBackup").addEventListener("click", () => openSheet("sheetBackup"));
+$("closeBackup").addEventListener("click", closeSheets);
+$("bkMake").addEventListener("click", async () => {
+  if(!A){ toast("این بخش داخل برنامهٔ اندروید کار می‌کند."); return; }
+  showBusy("در حال ساخت پشتیبان…", 0.3);
+  try{
+    const data = JSON.stringify({app: "ketabkhoon", v: 1, books: await dbAll("books"), texts: await dbAll("texts"), pron: getPron()});
+    const name = "ketabkhoon-backup-" + dayKey(0) + ".json";
+    let pos = 0, first = true;
+    while(pos < data.length){
+      let end = Math.min(pos + 200000, data.length);
+      const c = data.charCodeAt(end - 1);
+      if(c >= 0xD800 && c <= 0xDBFF && end < data.length) end--;
+      A.writeExport(name, data.slice(pos, end), first);
+      first = false; pos = end;
+      showBusy("در حال ساخت پشتیبان…", 0.3 + 0.6 * pos / data.length);
+    }
+    hideBusy(); closeSheets();
+    A.saveToDownloads(name);
+  }catch(e){ console.error(e); hideBusy(); toast("ساخت پشتیبان ناموفق بود."); }
+});
+$("bkRestore").addEventListener("click", () => $("restoreFile").click());
+$("restoreFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if(!f) return;
+  showBusy("در حال بازیابی…", 0.4);
+  try{
+    const d = JSON.parse(await f.text());
+    if(!d || d.app !== "ketabkhoon" || !Array.isArray(d.books)) throw new Error("bad");
+    const have = new Set((await dbAll("books")).map(b => b.id));
+    const texts = {};
+    (d.texts || []).forEach(t => { texts[t.id] = t; });
+    let added = 0;
+    for(const b of d.books){
+      if(have.has(b.id) || !texts[b.id]) continue;
+      await dbPut("books", b); await dbPut("texts", texts[b.id]); added++;
+    }
+    if(Array.isArray(d.pron) && d.pron.length){
+      const cur = getPron();
+      d.pron.forEach(r => { if(r && r.f && !cur.some(x => x.f === r.f)) cur.push(r); });
+      setPron(cur);
+    }
+    hideBusy(); closeSheets(); await loadLib();
+    toast(added ? fa(added) + " کتاب بازیابی شد." : "کتاب جدیدی برای بازیابی نبود.");
+  }catch(err){ console.error(err); hideBusy(); toast("این فایل پشتیبان معتبر نیست."); }
+});
+
+/* ---------- profile ---------- */
+function getStats(){
+  try{ const s = JSON.parse(store.get("stats", "")); if(s && s.days) return s; }catch(e){}
+  return {total: 0, days: {}};
+}
+function addListen(sec){
+  const s = getStats(), k = dayKey(0);
+  s.total += sec; s.days[k] = (s.days[k] || 0) + sec;
+  const keys = Object.keys(s.days).sort();
+  while(keys.length > 60) delete s.days[keys.shift()];
+  store.set("stats", JSON.stringify(s));
+}
+function streakDays(s){
+  let c = 0;
+  for(let i = 0; i > -400; i--){
+    if((s.days[dayKey(i)] || 0) >= 60) c++;
+    else if(i !== 0) break;
+  }
+  return c;
+}
+let lastT = 0, statBuf = 0;
+audio.addEventListener("loadstart", () => { lastT = 0; });
+audio.addEventListener("timeupdate", () => {
+  const t = audio.currentTime, d = t - lastT;
+  lastT = t;
+  if(d > 0 && d < 1.5){ statBuf += d; if(statBuf >= 5){ addListen(statBuf); statBuf = 0; } }
+});
+$("goalSel").value = store.get("goal", "20");
+$("goalSel").addEventListener("change", () => { store.set("goal", $("goalSel").value); renderMe(); });
+function renderMe(){
+  const s = getStats();
+  const total = Math.round(s.total / 60), today = Math.round((s.days[dayKey(0)] || 0) / 60), streak = streakDays(s);
+  $("stBooks").textContent = fa(lib.length); $("stTotal").textContent = fa(total);
+  $("stToday").textContent = fa(today); $("stStreak").textContent = fa(streak);
+  const goal = Number($("goalSel").value);
+  $("goalBar").style.width = Math.min(100, Math.round(today / goal * 100)) + "%";
+  $("goalTxt").textContent = today >= goal ? "هدف امروز کامل شد!" : fa(today) + " از " + fa(goal) + " دقیقه";
+  const chart = $("chart"); chart.innerHTML = "";
+  const vals = [];
+  for(let i = 6; i >= 0; i--) vals.push({v: s.days[dayKey(-i)] || 0, off: -i});
+  const max = Math.max(60, ...vals.map(x => x.v));
+  vals.forEach(x => {
+    const col = document.createElement("div"); col.className = "col";
+    const bar = document.createElement("i"); bar.style.height = Math.max(3, Math.round(x.v / max * 85)) + "%";
+    const lab = document.createElement("em");
+    const d = new Date(); d.setDate(d.getDate() + x.off);
+    lab.textContent = d.toLocaleDateString("fa", {weekday: "short"});
+    col.append(bar, lab); chart.appendChild(col);
+  });
+  const bd = $("badges"); bd.innerHTML = "";
+  [["۷ روز پیاپی", streak >= 7], ["۳۰ روز پیاپی", streak >= 30], ["یک ساعت گوش‌دادن", total >= 60], ["ده ساعت گوش‌دادن", total >= 600], ["پنج کتاب", lib.length >= 5], ["یک کتاب تمام‌شده", lib.some(b => bookPct(b) >= 98)]].forEach(([n, on]) => {
+    const e = document.createElement("div"); e.className = "badge" + (on ? " on" : ""); e.textContent = (on ? "★ " : "") + n; bd.appendChild(e);
+  });
+  const cur = lib.find(b => (b.idx || 0) > 0 && bookPct(b) < 98) || lib[0];
+  $("contCard").style.display = cur ? "block" : "none";
+  if(cur){
+    $("contTitle").textContent = cur.name;
+    const pct = bookPct(cur);
+    $("contBar").style.width = pct + "%"; $("contPct").textContent = fa(pct) + "٪ خوانده شده";
+    const box = $("contCover"); box.innerHTML = "";
+    let c;
+    if(cur.cover){ c = document.createElement("img"); c.src = cur.cover; c.alt = ""; c.style.aspectRatio = "3/4"; }
+    else{ c = document.createElement("div"); c.className = "coverph"; c.textContent = cur.name; }
+    box.appendChild(c);
+    $("contGo").onclick = () => openBook(cur.id);
+  }
+}
+
+/* ---------- tabs, more ---------- */
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => go(t.dataset.v)));
+$("mFind").addEventListener("click", () => openSheet("sheetFind"));
+$("mFeed").addEventListener("click", () => { $("fbRate").style.display = CONFIG.storeUrl ? "" : "none"; renderStars(); openSheet("sheetFeed"); });
+$("mShare").addEventListener("click", () => {
+  const link = CONFIG.storeUrl ? "\n" + CONFIG.storeUrl : "";
+  const msg = CONFIG.appName + ": کتاب‌ها و مقاله‌های خود را با صدای فارسی گوش کنید، بدون نیاز به اینترنت." + link;
+  if(A) A.shareText(msg); else toast("این بخش داخل برنامهٔ اندروید کار می‌کند.");
+});
+$("mAbout").addEventListener("click", () => {
+  $("abName").textContent = CONFIG.appName; $("abVer").textContent = "نسخهٔ " + CONFIG.version; $("abText").textContent = CONFIG.about;
+  $("abDev").textContent = CONFIG.developer ? "توسعه‌دهنده: " + CONFIG.developer : "";
+  $("abMail").textContent = CONFIG.email ? "ارتباط با ما: " + CONFIG.email : "";
+  openSheet("sheetAbout");
+});
+["closeFind", "closeFeed", "closeAbout"].forEach(id => $(id).addEventListener("click", closeSheets));
+const BOOKS = [
+  {t:"مرد در جستجوی معنا", a:"ویکتور فرانکل", d:"خاطرات فرانکل از اردوگاه‌های کار اجباری و پایه‌های «معنادرمانی»."},
+  {t:"هنر عشق ورزیدن", a:"اریک فروم", d:"عشق را به‌عنوان هنری که باید آموخت و تمرین کرد بررسی می‌کند."},
+  {t:"گریز از آزادی", a:"اریک فروم", d:"دربارهٔ اینکه چرا انسان‌ها گاهی از آزادی می‌گریزند."},
+  {t:"تفکر، سریع و کند", a:"دانیل کانمن", d:"دو شیوهٔ تفکر شهودی و تحلیلی و خطاهای رایج قضاوت را توضیح می‌دهد."},
+  {t:"جنایت و مکافات", a:"فئودور داستایفسکی", d:"دانشجویی فقیر در سن‌پترزبورگ مرتکب قتل می‌شود و با عذاب وجدان روبه‌رو می‌شود."},
+  {t:"بوف کور", a:"صادق هدایت", d:"رمانی روان‌شناختی و کابوس‌وار، از مهم‌ترین آثار ادبیات مدرن فارسی."},
+  {t:"سووشون", a:"سیمین دانشور", d:"روایت زندگی زنی در شیراز سال‌های جنگ جهانی دوم."},
+  {t:"کیمیاگر", a:"پائولو کوئیلو", d:"چوپانی اندلسی به‌دنبال گنج و «افسانهٔ شخصی» خود سفر می‌کند."},
+  {t:"شازده کوچولو", a:"آنتوان دو سنت‌اگزوپری", d:"داستانی فلسفی دربارهٔ دوستی، عشق و نگاه بزرگ‌سالان به زندگی."},
+  {t:"مثنوی معنوی", a:"مولانا", d:"مجموعه‌ای از حکایت‌ها و آموزه‌های عرفانی به شعر."}
+];
+(function(){
+  const box = $("sugg");
+  BOOKS.forEach(b => {
+    const el = document.createElement("div"); el.className = "sugg";
+    el.innerHTML = "<b></b><small></small><p></p>";
+    el.querySelector("b").textContent = b.t; el.querySelector("small").textContent = b.a; el.querySelector("p").textContent = b.d;
+    const btn = document.createElement("button"); btn.className = "btn sm"; btn.textContent = "مقاله و نقد در Google";
+    btn.addEventListener("click", () => googleSearch(b.t + " " + b.a + " نقد و بررسی"));
+    el.appendChild(btn); box.appendChild(el);
+  });
+})();
+$("qGo").addEventListener("click", () => {
+  const q = $("q").value.trim();
+  if(!q){ toast("عبارت جستجو را بنویسید."); return; }
+  googleSearch(q + " مقاله");
+});
+let rating = 0;
+function renderStars(){
+  const box = $("stars"); box.innerHTML = "";
+  for(let i = 1; i <= 5; i++){
+    const b = document.createElement("button");
+    b.className = "star" + (i <= rating ? " on" : ""); b.textContent = "★"; b.setAttribute("aria-label", fa(i) + " ستاره");
+    b.addEventListener("click", () => { rating = i; renderStars(); });
+    box.appendChild(b);
+  }
+}
+$("fbSend").addEventListener("click", () => {
+  if(!CONFIG.email){ toast("ایمیل پشتیبانی هنوز تنظیم نشده است."); return; }
+  const body = (rating ? "امتیاز: " + rating + " از ۵\n\n" : "") + $("fbText").value;
+  if(A) A.sendEmail(CONFIG.email, "نظر دربارهٔ " + CONFIG.appName, body);
+  closeSheets();
+});
+$("fbRate").addEventListener("click", () => { if(CONFIG.storeUrl) openWeb(CONFIG.storeUrl); });
+
+/* ---------- onboarding ---------- */
+const ONB = [
+  ["کتاب‌هایتان را گوش کنید", "فایل کتاب یا مقاله را اضافه کنید و بگذارید برایتان بخواند، هر جا که هستید."],
+  ["PDF، Word، EPUB و متن", "فایل را از حافظهٔ گوشی یا Google Drive انتخاب کنید، یا متن را مستقیم بچسبانید."],
+  ["بدون اینترنت، به آرامی و شمرده", "صدای فارسی داخل خود برنامه است. سرعت، تایمر خواب و نشانک‌ها در اختیار شماست."]
+];
+let onbStep = 0;
+function renderOnb(){
+  $("onbT").textContent = ONB[onbStep][0]; $("onbP").textContent = ONB[onbStep][1];
+  document.querySelectorAll("#onb .dots i").forEach((d, k) => d.classList.toggle("on", k === onbStep));
+  $("onbNext").textContent = onbStep === ONB.length - 1 ? "شروع" : "بعدی";
+}
+$("onbNext").addEventListener("click", () => {
+  if(onbStep < ONB.length - 1){ onbStep++; renderOnb(); }
+  else{ $("onb").classList.remove("on"); store.set("onb", "1"); }
+});
+if(!store.get("onb", "")){ $("onb").classList.add("on"); renderOnb(); }
+
+/* ---------- start ---------- */
+loadLib().then(() => { if(A) window.__checkIncoming(); });
+startWarm();
+</script>
+</body>
+</html>
